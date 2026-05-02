@@ -2,23 +2,26 @@
   "templates": [
     {
       "id": 1,
-      "title": "COM S 309 Sprint Notes",
+      "title": "COMS 3090",
+      "class": "Software Development Practices",
       "category": "Lecture Notes",
-      "description": "Use this for weekly software development notes, sprint updates, and team decisions.",
+      "description": "PLaceholder",
       "tag": "Software",
       "sampleContent": "Today's topic: Agile sprint planning\nKey points:\n- Standup updates\n- Assigned tasks\n- Blockers\n- Next deadline"
     },
     {
       "id": 2,
-      "title": "Database Exam Review",
+      "title": "MATH 1650",
+      "class": "Calculus I",
       "category": "Exam Prep",
-      "description": "Organize SQL, normalization, transactions, locking, and indexing concepts.",
+      "description": "Placeholder",
       "tag": "Exam",
       "sampleContent": "Exam topics:\n- 2PL\n- Strict 2PL\n- Waits-for graph\n- B+ trees\n- SQL joins"
     },
     {
       "id": 3,
-      "title": "Canvas Assignment Tracker",
+      "title": "MATH 2070",
+      "class": "Matrices and Linear Algebra",
       "category": "Assignments",
       "description": "Track due dates, submission status, priority, and notes for each assignment.",
       "tag": "Tracker",
@@ -26,7 +29,8 @@
     },
     {
       "id": 4,
-      "title": "Daily Study Checklist",
+      "title": "COMS 2300",
+      "class": "Discrete Computational Structures",
       "category": "To-Do",
       "description": "Plan study tasks for today, upcoming work, and completed items.",
       "tag": "Productivity",
@@ -34,7 +38,8 @@
     },
     {
       "id": 5,
-      "title": "Group Project Planner",
+      "title": "COMS 2280",
+      "class": "Data Structures and Algorithms",
       "category": "Project",
       "description": "Use this to organize team roles, milestones, meeting notes, and deliverables.",
       "tag": "Team",
@@ -42,7 +47,8 @@
     },
     {
       "id": 6,
-      "title": "AI Minor Course Notes",
+      "title": "COMS 2270",
+      "class": "Object-Oriented Programming",
       "category": "Lecture Notes",
       "description": "Keep track of AI concepts, models, definitions, and practice examples.",
       "tag": "AI",

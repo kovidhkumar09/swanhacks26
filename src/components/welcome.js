@@ -14,7 +14,7 @@ export default class Welcome extends Component {
       activeSection: "dashboard",
       showNewNoteModal: false,
       notes: templatesData.sampleNotes,
-      newNote: { title: "", category: "", content: "", images: [] },
+      newNote: { title: "", category: "", content: "", tags: [], tagsInput: "", images: [] },
     };
   }
 
@@ -45,27 +45,17 @@ export default class Welcome extends Component {
   closeNewNoteModal = () => this.setState({ showNewNoteModal: false });
 
   handleNewNoteChange = (e) => {
-  const { name, value } = e.target;
+    const { name, value } = e.target;
+    this.setState((prevState) => {
+      let updated = { ...prevState.newNote, [name]: value };
+      if (name === "tagsInput") {
+        updated.tags = value.split(",").map((t) => t.trim()).filter((t) => t.length > 0);
+      }
+      return { newNote: updated };
+    });
+  };
 
-  this.setState((prevState) => {
-    let updated = {
-      ...prevState.newNote,
-      [name]: value,
-    };
-
-    // TAG LOGIC
-    if (name === "tagsInput") {
-      updated.tags = value
-        .split(",")
-        .map((t) => t.trim())
-        .filter((t) => t.length > 0);
-    }
-
-    return { newNote: updated };
-  });
-};
-
-  handleImageUpload = (e) => {
+  handleFileUpload = (e) => {
     const files = Array.from(e.target.files);
     files.forEach((file) => {
       const reader = new FileReader();
@@ -73,7 +63,7 @@ export default class Welcome extends Component {
         this.setState((prev) => ({
           newNote: {
             ...prev.newNote,
-            images: [...prev.newNote.images, { name: file.name, src: ev.target.result }],
+            images: [...prev.newNote.images, { name: file.name, src: ev.target.result, type: file.type }],
           },
         }));
       };
@@ -92,7 +82,7 @@ export default class Welcome extends Component {
 
   createNote = (e) => {
     e.preventDefault();
-    const { title, category, content, images } = this.state.newNote;
+    const { title, category, content, images, tags } = this.state.newNote;
     if (!title.trim()) { alert("Please enter a note title."); return; }
 
     const noteToAdd = {
@@ -118,8 +108,9 @@ export default class Welcome extends Component {
       showNewNoteModal: true,
       newNote: {
         title: template.title,
+        class: template.class,
         category: template.category,
-        content: template.sampleContent || template.desceription || "",
+        content: template.sampleContent || template.description || "",
         tags: [],
         tagsInput: "",
         images: [],
@@ -141,7 +132,6 @@ export default class Welcome extends Component {
 
     return (
       <section className="template-section">
-
         <div className="category-pills">
           {categories.map((category) => (
             <button
@@ -159,15 +149,11 @@ export default class Welcome extends Component {
                   <span></span><span></span><span></span>
                 </div>
                 <div className="preview-content">
-                  <h4>{template.title}</h4>
-                  <p>{template.description}</p>
-                  <div className="preview-line large"></div>
-                  <div className="preview-line"></div>
-                  <div className="preview-line short"></div>
+                  <h3>{template.title}</h3>
+                  <h4>{template.class}</h4>
                 </div>
               </div>
               <div className="template-info">
-                <h3>{template.title}</h3>
                 <p>{template.description}</p>
                 <span>{template.tag}</span>
               </div>
@@ -199,9 +185,16 @@ export default class Welcome extends Component {
               <p className="note-content">{note.content}</p>
               {note.images && note.images.length > 0 && (
                 <div className="note-images">
-                  {note.images.map((img, i) => (
-                    <img key={i} src={img.src} alt={img.name} className="note-image-thumb" />
-                  ))}
+                  {note.images.map((file, i) =>
+                    file.type && file.type.startsWith("image/") ? (
+                      <img key={i} src={file.src} alt={file.name} className="note-image-thumb" />
+                    ) : (
+                      <div key={i} className="note-file-badge">
+                        <span>{file.name.split(".").pop().toUpperCase()}</span>
+                        <p>{file.name}</p>
+                      </div>
+                    )
+                  )}
                 </div>
               )}
             </div>
@@ -254,14 +247,14 @@ export default class Welcome extends Component {
               rows="5"
             ></textarea>
 
-            <label>Images</label>
+            <label>Files</label>
             <div className="image-upload-area">
               <input
                 type="file"
-                accept="image/*"
+                accept="*/*"
                 multiple
                 ref={this.imageInputRef}
-                onChange={this.handleImageUpload}
+                onChange={this.handleFileUpload}
                 style={{ display: "none" }}
               />
               <button
@@ -269,14 +262,21 @@ export default class Welcome extends Component {
                 className="image-upload-button"
                 onClick={() => this.imageInputRef.current.click()}
               >
-                &#128247; Add Images
+                &#128206; Add Files
               </button>
 
               {images.length > 0 && (
                 <div className="image-preview-grid">
-                  {images.map((img, i) => (
+                  {images.map((file, i) => (
                     <div key={i} className="image-preview-item">
-                      <img src={img.src} alt={img.name} />
+                      {file.type && file.type.startsWith("image/") ? (
+                        <img src={file.src} alt={file.name} />
+                      ) : (
+                        <div className="file-preview-icon">
+                          <span>{file.name.split(".").pop().toUpperCase()}</span>
+                          <p>{file.name}</p>
+                        </div>
+                      )}
                       <button
                         type="button"
                         className="image-remove-button"
