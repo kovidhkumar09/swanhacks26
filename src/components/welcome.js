@@ -38,18 +38,32 @@ export default class Welcome extends Component {
   openNewNoteModal = () => {
     this.setState({
       showNewNoteModal: true,
-      newNote: { title: "", category: "", content: "", images: [] },
+      newNote: { title: "", category: "", content: "", tags: [], tagsInput: "", images: [] },
     });
   };
 
   closeNewNoteModal = () => this.setState({ showNewNoteModal: false });
 
   handleNewNoteChange = (e) => {
-    const { name, value } = e.target;
-    this.setState((prev) => ({
-      newNote: { ...prev.newNote, [name]: value },
-    }));
-  };
+  const { name, value } = e.target;
+
+  this.setState((prevState) => {
+    let updated = {
+      ...prevState.newNote,
+      [name]: value,
+    };
+
+    // TAG LOGIC
+    if (name === "tagsInput") {
+      updated.tags = value
+        .split(",")
+        .map((t) => t.trim())
+        .filter((t) => t.length > 0);
+    }
+
+    return { newNote: updated };
+  });
+};
 
   handleImageUpload = (e) => {
     const files = Array.from(e.target.files);
@@ -86,6 +100,7 @@ export default class Welcome extends Component {
       title,
       category: category || "General",
       content: content || "No content added yet.",
+      tags: tags || [],
       images,
       date: new Date().toLocaleDateString(),
     };
@@ -94,7 +109,7 @@ export default class Welcome extends Component {
       notes: [noteToAdd, ...prev.notes],
       showNewNoteModal: false,
       activeSection: "notes",
-      newNote: { title: "", category: "", content: "", images: [] },
+      newNote: { title: "", category: "", content: "", tags: [], tagsInput: "", images: [] },
     }));
   };
 
@@ -104,7 +119,9 @@ export default class Welcome extends Component {
       newNote: {
         title: template.title,
         category: template.category,
-        content: template.sampleContent,
+        content: template.sampleContent || template.desceription || "",
+        tags: [],
+        tagsInput: "",
         images: [],
       },
     });
@@ -124,14 +141,7 @@ export default class Welcome extends Component {
 
     return (
       <section className="template-section">
-        <div className="template-heading">
-          <h2>Pick your template</h2>
-          <p>Choose a notes layout, then turn it into a real note.</p>
-        </div>
-        <div className="template-tabs">
-          <button className="template-tab active">Predesigned templates</button>
-          <button className="template-tab">Blank templates</button>
-        </div>
+
         <div className="category-pills">
           {categories.map((category) => (
             <button
@@ -143,7 +153,7 @@ export default class Welcome extends Component {
         </div>
         <div className="template-grid">
           {filteredTemplates.map((template, index) => (
-            <div className="template-card" key={template.id}>
+            <div className="template-card" key={template.id} onClick={() => this.useTemplate(template)}>
               <div className={`template-preview preview-${(index % 6) + 1}`}>
                 <div className="preview-topbar">
                   <span></span><span></span><span></span>
@@ -160,9 +170,6 @@ export default class Welcome extends Component {
                 <h3>{template.title}</h3>
                 <p>{template.description}</p>
                 <span>{template.tag}</span>
-                <button className="use-template-button" onClick={() => this.useTemplate(template)}>
-                  Use Template
-                </button>
               </div>
             </div>
           ))}
