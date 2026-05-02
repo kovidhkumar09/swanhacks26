@@ -1,0 +1,68 @@
+{
+  "templates": [
+    {
+      "id": 1,
+      "title": "COM S 309 Sprint Notes",
+      "category": "Lecture Notes",
+      "description": "Use this for weekly software development notes, sprint updates, and team decisions.",
+      "tag": "Software",
+      "sampleContent": "Today's topic: Agile sprint planning\nKey points:\n- Standup updates\n- Assigned tasks\n- Blockers\n- Next deadline"
+    },
+    {
+      "id": 2,
+      "title": "Database Exam Review",
+      "category": "Exam Prep",
+      "description": "Organize SQL, normalization, transactions, locking, and indexing concepts.",
+      "tag": "Exam",
+      "sampleContent": "Exam topics:\n- 2PL\n- Strict 2PL\n- Waits-for graph\n- B+ trees\n- SQL joins"
+    },
+    {
+      "id": 3,
+      "title": "Canvas Assignment Tracker",
+      "category": "Assignments",
+      "description": "Track due dates, submission status, priority, and notes for each assignment.",
+      "tag": "Tracker",
+      "sampleContent": "Assignment name:\nCourse:\nDue date:\nStatus:\nQuestions to ask professor:"
+    },
+    {
+      "id": 4,
+      "title": "Daily Study Checklist",
+      "category": "To-Do",
+      "description": "Plan study tasks for today, upcoming work, and completed items.",
+      "tag": "Productivity",
+      "sampleContent": "Today:\n- Review lecture slides\n- Finish homework question 2\n- Email TA\n\nCompleted:\n- Read chapter notes"
+    },
+    {
+      "id": 5,
+      "title": "Group Project Planner",
+      "category": "Project",
+      "description": "Use this to organize team roles, milestones, meeting notes, and deliverables.",
+      "tag": "Team",
+      "sampleContent": "Project goal:\nTeam members:\nMilestones:\nCurrent blocker:\nNext meeting:"
+    },
+    {
+      "id": 6,
+      "title": "AI Minor Course Notes",
+      "category": "Lecture Notes",
+      "description": "Keep track of AI concepts, models, definitions, and practice examples.",
+      "tag": "AI",
+      "sampleContent": "Topic:\nDefinition:\nExample:\nImportant formula:\nQuestions:"
+    }
+  ],
+  "sampleNotes": [
+    {
+      "id": 101,
+      "title": "Transactions and Locking",
+      "category": "Database",
+      "date": "2026-05-02",
+      "content": "Strict 2PL holds exclusive locks until commit. Waits-for graph cycles indicate deadlock."
+    },
+    {
+      "id": 102,
+      "title": "React Home Page Ideas",
+      "category": "Project",
+      "date": "2026-05-02",
+      "content": "Use Canvas-style navigation with dashboard, notes, assignments, calendar, and inbox."
+    }
+  ]
+}
