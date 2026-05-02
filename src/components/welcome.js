@@ -132,15 +132,7 @@ export default class Welcome extends Component {
 
     return (
       <section className="template-section">
-        <div className="category-pills">
-          {categories.map((category) => (
-            <button
-              key={category}
-              onClick={() => this.setCategory(category)}
-              className={this.state.selectedCategory === category ? "category-pill active" : "category-pill"}
-            >{category}</button>
-          ))}
-        </div>
+
         <div className="template-grid">
           {filteredTemplates.map((template, index) => (
             <div className="template-card" key={template.id} onClick={() => this.useTemplate(template)}>
@@ -155,7 +147,7 @@ export default class Welcome extends Component {
               </div>
               <div className="template-info">
                 <p>{template.description}</p>
-                <span>{template.tag}</span>
+
               </div>
             </div>
           ))}
@@ -323,10 +315,7 @@ export default class Welcome extends Component {
               className={this.state.activeSection === "notes" ? "sidebar-link active" : "sidebar-link"}
               onClick={() => this.setActiveSection("notes")}
             ><span>📝</span> Notes</button>
-            <button className="sidebar-link"><span>📚</span> Assignments</button>
-            <button className="sidebar-link"><span>📅</span> Calendar</button>
-            <button className="sidebar-link"><span>✅</span> To-Do</button>
-            <button className="sidebar-link"><span>✉️</span> Inbox</button>
+
           </nav>
           <div className="sidebar-footer">
             <Link to="/signin" onClick={this.logOut} className="logout-link">Logout</Link>

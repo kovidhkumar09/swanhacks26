@@ -5,7 +5,7 @@
       "title": "COMS 3090",
       "class": "Software Development Practices",
       "category": "Lecture Notes",
-      "description": "PLaceholder",
+      "description": "Practical introduction to methods for managing software development.",
       "tag": "Software",
       "sampleContent": "Today's topic: Agile sprint planning\nKey points:\n- Standup updates\n- Assigned tasks\n- Blockers\n- Next deadline"
     },
@@ -14,7 +14,7 @@
       "title": "MATH 1650",
       "class": "Calculus I",
       "category": "Exam Prep",
-      "description": "Placeholder",
+      "description": "Differential calculus, applications of the derivative, introduction to integral calculus.",
       "tag": "Exam",
       "sampleContent": "Exam topics:\n- 2PL\n- Strict 2PL\n- Waits-for graph\n- B+ trees\n- SQL joins"
     },
@@ -23,7 +23,7 @@
       "title": "MATH 2070",
       "class": "Matrices and Linear Algebra",
       "category": "Assignments",
-      "description": "Track due dates, submission status, priority, and notes for each assignment.",
+      "description": "Systems of linear equations, determinants, vector spaces, linear transformations, orthogonality, least-squares methods, eigenvalues and eigenvectors.",
       "tag": "Tracker",
       "sampleContent": "Assignment name:\nCourse:\nDue date:\nStatus:\nQuestions to ask professor:"
     },
@@ -32,7 +32,7 @@
       "title": "COMS 2300",
       "class": "Discrete Computational Structures",
       "category": "To-Do",
-      "description": "Plan study tasks for today, upcoming work, and completed items.",
+      "description": "Logic, set theory, functions, relations, cardinality of sets, combinatorics and graph theory.",
       "tag": "Productivity",
       "sampleContent": "Today:\n- Review lecture slides\n- Finish homework question 2\n- Email TA\n\nCompleted:\n- Read chapter notes"
     },
@@ -41,7 +41,7 @@
       "title": "COMS 2280",
       "class": "Data Structures and Algorithms",
       "category": "Project",
-      "description": "Use this to organize team roles, milestones, meeting notes, and deliverables.",
+      "description": "Object-oriented analysis, design, and programming, with emphasis on data abstraction, inheritance and subtype polymorphism, and generics, using Java as the implementation language.",
       "tag": "Team",
       "sampleContent": "Project goal:\nTeam members:\nMilestones:\nCurrent blocker:\nNext meeting:"
     },
@@ -50,7 +50,7 @@
       "title": "COMS 2270",
       "class": "Object-Oriented Programming",
       "category": "Lecture Notes",
-      "description": "Keep track of AI concepts, models, definitions, and practice examples.",
+      "description": "Computer programming using objects as the mechanism for modularity, abstraction, and code reuse. Java programming language. Instance variables, methods, and encapsulation.",
       "tag": "AI",
       "sampleContent": "Topic:\nDefinition:\nExample:\nImportant formula:\nQuestions:"
     }
