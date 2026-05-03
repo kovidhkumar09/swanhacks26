@@ -1,6 +1,18 @@
 import React, { Component } from "react";
 import { Link, Redirect } from "react-router-dom";
 import "../index.css";
+import {
+  getStoredUsername,
+  addVideoComment,
+  updateVideoComment,
+  deleteVideoCommentById,
+  addPdfComment,
+  updatePdfComment,
+  deletePdfCommentById,
+  addGenericComment,
+  updateGenericComment,
+  deleteGenericCommentById,
+} from "../services/api";
 
 const MOCK_IMAGE_SRC =
   "data:image/svg+xml;charset=UTF-8," +
@@ -238,6 +250,10 @@ export default class Welcome extends Component {
       pdfSelectionRect: null,
       editingPdfCommentId: null,
       editingVideoCommentId: null,
+
+      genericComments: {},
+      genericDraftComment: "",
+      editingGenericCommentId: null,
 
       newClass: {
         code: "",
@@ -784,6 +800,9 @@ export default class Welcome extends Component {
       isSelectingPdfRegion: false,
       editingPdfCommentId: null,
 
+      genericDraftComment: "",
+      editingGenericCommentId: null,
+
       videoComments: {
         ...prevState.videoComments,
         [file.id]: prevState.videoComments[file.id] || file.comments || [],
@@ -792,6 +811,11 @@ export default class Welcome extends Component {
       pdfComments: {
         ...prevState.pdfComments,
         [file.id]: prevState.pdfComments[file.id] || file.comments || [],
+      },
+
+      genericComments: {
+        ...prevState.genericComments,
+        [file.id]: prevState.genericComments[file.id] || file.comments || [],
       },
     }));
   };
@@ -810,6 +834,9 @@ export default class Welcome extends Component {
       pdfSelectionRect: null,
       isSelectingPdfRegion: false,
       editingPdfCommentId: null,
+
+      genericDraftComment: "",
+      editingGenericCommentId: null,
     });
   };
 
@@ -879,7 +906,7 @@ export default class Welcome extends Component {
     });
   };
 
-  deleteVideoComment = (comment) => {
+  deleteVideoComment = async (comment) => {
     const { selectedFile } = this.state;
 
     if (!selectedFile) {
@@ -892,9 +919,19 @@ export default class Welcome extends Component {
       note_id: selectedFile.noteId,
       comment_id: commentId,
       timestamp: Number(comment.timestamp),
+      username: getStoredUsername(),
     };
 
     console.log("Delete video comment backend payload:", payload);
+
+    try {
+      await deleteVideoCommentById(selectedFile.noteId, commentId);
+    } catch (error) {
+      console.log(
+        "Video delete backend unavailable, deleting locally:",
+        error.message,
+      );
+    }
 
     this.setState((prevState) => ({
       videoComments: {
@@ -906,7 +943,7 @@ export default class Welcome extends Component {
     }));
   };
 
-  submitVideoComment = (e) => {
+  submitVideoComment = async (e) => {
     e.preventDefault();
 
     const {
@@ -925,25 +962,44 @@ export default class Welcome extends Component {
     const payload = {
       note_id: selectedFile.noteId,
       comment: newVideoComment.trim(),
-      comment_id: commentId,
       timestamp: Number(videoCurrentTime.toFixed(2)),
+      username: getStoredUsername(),
     };
 
     console.log("Video comment backend payload:", payload);
+
+    try {
+      if (editingVideoCommentId) {
+        await updateVideoComment(selectedFile.noteId, commentId, payload);
+      } else {
+        await addVideoComment(selectedFile.noteId, payload);
+      }
+    } catch (error) {
+      console.log(
+        "Video comment backend unavailable, saving locally:",
+        error.message,
+      );
+    }
 
     this.setState((prevState) => {
       const existingComments = prevState.videoComments[selectedFile.id] || [];
 
       const updatedComments = editingVideoCommentId
         ? existingComments.map((item) =>
-            item.comment_id === editingVideoCommentId
-              ? { ...item, ...payload, id: item.id }
+            (item.comment_id || item.id) === editingVideoCommentId
+              ? {
+                  ...item,
+                  ...payload,
+                  id: item.id,
+                  comment_id: commentId,
+                }
               : item,
           )
         : [
             ...existingComments,
             {
               id: commentId,
+              comment_id: commentId,
               ...payload,
             },
           ];
@@ -1060,7 +1116,7 @@ export default class Welcome extends Component {
     });
   };
 
-  savePdfComment = (e) => {
+  savePdfComment = async (e) => {
     e.preventDefault();
 
     const {
@@ -1091,15 +1147,28 @@ export default class Welcome extends Component {
     const payload = {
       note_id: selectedFile.noteId,
       comment: pdfDraftComment.trim(),
-      comment_id: commentId,
       x: Number(region.x.toFixed(2)),
       y: Number(region.y.toFixed(2)),
       width: Number(region.width.toFixed(2)),
       height: Number(region.height.toFixed(2)),
       page_number: pdfCurrentPage,
+      username: getStoredUsername(),
     };
 
     console.log("PDF comment backend payload:", payload);
+
+    try {
+      if (editingPdfCommentId) {
+        await updatePdfComment(selectedFile.noteId, commentId, payload);
+      } else {
+        await addPdfComment(selectedFile.noteId, payload);
+      }
+    } catch (error) {
+      console.log(
+        "PDF comment backend unavailable, saving locally:",
+        error.message,
+      );
+    }
 
     this.setState((prevState) => {
       const existingComments = prevState.pdfComments[selectedFile.id] || [];
@@ -1114,6 +1183,7 @@ export default class Welcome extends Component {
             ...existingComments,
             {
               id: commentId,
+              comment_id: commentId,
               ...payload,
             },
           ];
@@ -1145,7 +1215,7 @@ export default class Welcome extends Component {
     });
   };
 
-  deletePdfComment = (comment) => {
+  deletePdfComment = async (comment) => {
     const { selectedFile } = this.state;
 
     if (!selectedFile) {
@@ -1158,9 +1228,19 @@ export default class Welcome extends Component {
       note_id: selectedFile.noteId,
       comment_id: commentId,
       page_number: comment.page_number,
+      username: getStoredUsername(),
     };
 
     console.log("Delete PDF comment backend payload:", payload);
+
+    try {
+      await deletePdfCommentById(selectedFile.noteId, commentId);
+    } catch (error) {
+      console.log(
+        "PDF delete backend unavailable, deleting locally:",
+        error.message,
+      );
+    }
 
     this.setState((prevState) => ({
       pdfComments: {
@@ -1170,6 +1250,195 @@ export default class Welcome extends Component {
         ).filter((item) => (item.comment_id || item.id) !== commentId),
       },
     }));
+  };
+
+  handleGenericDraftChange = (e) => {
+    this.setState({
+      genericDraftComment: e.target.value,
+    });
+  };
+
+  submitGenericComment = async (e) => {
+    e.preventDefault();
+
+    const { selectedFile, genericDraftComment, editingGenericCommentId } =
+      this.state;
+
+    if (!selectedFile || !genericDraftComment.trim()) {
+      return;
+    }
+
+    const commentId = editingGenericCommentId || Date.now();
+
+    const payload = {
+      commentId: commentId,
+      comment: genericDraftComment.trim(),
+      nodeId: selectedFile.noteId,
+      username: getStoredUsername(),
+    };
+
+    console.log("Generic file comment backend payload:", payload);
+
+    try {
+      if (editingGenericCommentId) {
+        await updateGenericComment(selectedFile.noteId, commentId, payload);
+      } else {
+        await addGenericComment(selectedFile.noteId, payload);
+      }
+    } catch (error) {
+      console.log(
+        "Generic comment backend unavailable, saving locally:",
+        error.message,
+      );
+    }
+
+    this.setState((prevState) => {
+      const existingComments = prevState.genericComments[selectedFile.id] || [];
+
+      const updatedComments = editingGenericCommentId
+        ? existingComments.map((item) =>
+            (item.commentId || item.id) === editingGenericCommentId
+              ? {
+                  ...item,
+                  ...payload,
+                  id: item.id,
+                }
+              : item,
+          )
+        : [
+            ...existingComments,
+            {
+              id: commentId,
+              ...payload,
+            },
+          ];
+
+      return {
+        genericComments: {
+          ...prevState.genericComments,
+          [selectedFile.id]: updatedComments,
+        },
+        genericDraftComment: "",
+        editingGenericCommentId: null,
+      };
+    });
+  };
+
+  editGenericComment = (comment) => {
+    this.setState({
+      genericDraftComment: comment.comment,
+      editingGenericCommentId: comment.commentId || comment.id,
+    });
+  };
+
+  deleteGenericComment = async (comment) => {
+    const { selectedFile } = this.state;
+
+    if (!selectedFile) {
+      return;
+    }
+
+    const commentId = comment.commentId || comment.id;
+
+    const payload = {
+      commentId: commentId,
+      nodeId: selectedFile.noteId,
+      username: getStoredUsername(),
+    };
+
+    console.log("Delete generic comment backend payload:", payload);
+
+    try {
+      await deleteGenericCommentById(selectedFile.noteId, commentId);
+    } catch (error) {
+      console.log(
+        "Generic delete backend unavailable, deleting locally:",
+        error.message,
+      );
+    }
+
+    this.setState((prevState) => ({
+      genericComments: {
+        ...prevState.genericComments,
+        [selectedFile.id]: (
+          prevState.genericComments[selectedFile.id] || []
+        ).filter((item) => (item.commentId || item.id) !== commentId),
+      },
+    }));
+  };
+
+  renderGenericCommentsPanel = () => {
+    const { selectedFile, genericDraftComment, editingGenericCommentId } =
+      this.state;
+
+    if (!selectedFile) {
+      return null;
+    }
+
+    const comments = this.state.genericComments[selectedFile.id] || [];
+
+    return (
+      <aside className="video-comments-panel">
+        <div className="video-comments-header">
+          <h3>Comments</h3>
+          <p>Add comments for this file.</p>
+        </div>
+
+        <form
+          className="video-comment-form"
+          onSubmit={this.submitGenericComment}
+        >
+          <label>
+            {editingGenericCommentId ? "Edit comment" : "Add comment"}
+          </label>
+
+          <textarea
+            value={genericDraftComment}
+            onChange={this.handleGenericDraftChange}
+            placeholder="Write a comment for this file..."
+            rows="3"
+          />
+
+          <button type="submit" className="save-note-button">
+            {editingGenericCommentId ? "Update Comment" : "Add Comment"}
+          </button>
+        </form>
+
+        <div className="video-comments-list">
+          {comments.length === 0 ? (
+            <div className="video-empty-comments">
+              No comments for this file yet.
+            </div>
+          ) : (
+            comments.map((item) => (
+              <div
+                className="video-comment-card"
+                key={item.commentId || item.id}
+              >
+                <span>{item.username || "Student"}</span>
+                <p>{item.comment}</p>
+
+                <div className="comment-actions">
+                  <button
+                    type="button"
+                    onClick={() => this.editGenericComment(item)}
+                  >
+                    Edit
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => this.deleteGenericComment(item)}
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </aside>
+    );
   };
 
   renderDashboard() {
@@ -1971,11 +2240,17 @@ export default class Welcome extends Component {
                 <p>This file does not have a valid preview URL.</p>
               </div>
             ) : isImage ? (
-              <img
-                src={url}
-                alt={selectedFile.name}
-                className="file-viewer-image"
-              />
+              <div className="generic-review-layout">
+                <div className="generic-file-panel">
+                  <img
+                    src={url}
+                    alt={selectedFile.name}
+                    className="file-viewer-image"
+                  />
+                </div>
+
+                {this.renderGenericCommentsPanel()}
+              </div>
             ) : isVideo ? (
               <div className="video-review-layout">
                 <div className="video-player-panel">
@@ -2205,11 +2480,17 @@ export default class Welcome extends Component {
                 </aside>
               </div>
             ) : (
-              <iframe
-                src={url}
-                title={selectedFile.name}
-                className="file-viewer-frame"
-              />
+              <div className="generic-review-layout">
+                <div className="generic-file-panel">
+                  <iframe
+                    src={url}
+                    title={selectedFile.name}
+                    className="file-viewer-frame"
+                  />
+                </div>
+
+                {this.renderGenericCommentsPanel()}
+              </div>
             )}
           </div>
 

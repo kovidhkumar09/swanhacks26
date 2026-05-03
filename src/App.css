@@ -1624,3 +1624,22 @@ body {
     max-height: none;
   }
 }
+
+/* ---------- Generic File Comments ---------- */
+
+.generic-review-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) 360px;
+  gap: 18px;
+  align-items: start;
+}
+
+.generic-file-panel {
+  min-width: 0;
+}
+
+@media (max-width: 900px) {
+  .generic-review-layout {
+    grid-template-columns: 1fr;
+  }
+}
