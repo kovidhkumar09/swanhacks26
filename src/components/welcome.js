@@ -2,16 +2,6 @@ import React, { Component } from "react";
 import { Link, Redirect } from "react-router-dom";
 import "../index.css";
 
-/*
-  Backend URLs for classes/units/notes are intentionally NOT used right now.
-  Login and signup can still use the backend through api.js.
-
-  Later, when the backend endpoints are ready, reconnect:
-  GET  /api/classes
-  GET  /api/units
-  POST /api/notes
-*/
-
 const MOCK_IMAGE_SRC =
   "data:image/svg+xml;charset=UTF-8," +
   encodeURIComponent(`
@@ -78,6 +68,19 @@ const MOCK_UNITS = [
             name: "mock-image-note.svg",
             type: "image/svg+xml",
             src: MOCK_IMAGE_SRC,
+            comments: [
+              {
+                id: 1,
+                comment_id: 1,
+                note_id: 102,
+                comment: "This is a sample PDF comment.",
+                x: 10,
+                y: 12,
+                width: 24,
+                height: 10,
+                page_number: 1,
+              },
+            ],
           },
         ],
       },
@@ -94,6 +97,19 @@ const MOCK_UNITS = [
             name: "sample.pdf",
             type: "application/pdf",
             src: "/mock-files/sample.pdf",
+            comments: [
+              {
+                id: 1,
+                comment_id: 1,
+                note_id: 102,
+                comment: "This is a sample PDF comment.",
+                x: 10,
+                y: 12,
+                width: 24,
+                height: 10,
+                page_number: 1,
+              },
+            ],
           },
         ],
       },
@@ -108,7 +124,7 @@ const MOCK_UNITS = [
         id: 103,
         title: "Video Note Example",
         content:
-          "This note has a video attachment. Put a file named sample-video.mp4 inside public/mock-files/ to test the video player.",
+          "This note has a video attachment. Put a file named sample-video.mp4 inside public/mock-files/ to test the video player and timestamp comments.",
         tags: ["video", "mock", "test"],
         date: "2026-05-02",
         files: [
@@ -117,6 +133,36 @@ const MOCK_UNITS = [
             name: "sample-video.mp4",
             type: "video/mp4",
             src: "/mock-files/sample-video.mp4",
+            comments: [
+              {
+                id: 1,
+                comment_id: 1,
+                note_id: 103,
+                comment: "This is an intro comment.",
+                timestamp: 4.5,
+              },
+              {
+                id: 2,
+                comment_id: 2,
+                note_id: 103,
+                comment: "Important explanation starts here.",
+                timestamp: 18.2,
+              },
+              {
+                id: 3,
+                comment_id: 3,
+                note_id: 103,
+                comment: "This comment appears in the 30–60 second section.",
+                timestamp: 35.7,
+              },
+              {
+                id: 4,
+                comment_id: 4,
+                note_id: 103,
+                comment: "This one appears later in the video.",
+                timestamp: 71.4,
+              },
+            ],
           },
         ],
       },
@@ -180,6 +226,19 @@ export default class Welcome extends Component {
       selectedNote: null,
       selectedFile: null,
 
+      videoComments: {},
+      newVideoComment: "",
+      videoCurrentTime: 0,
+
+      pdfComments: {},
+      pdfCurrentPage: 1,
+      pdfDraftComment: "",
+      isSelectingPdfRegion: false,
+      pdfSelectionStart: null,
+      pdfSelectionRect: null,
+      editingPdfCommentId: null,
+      editingVideoCommentId: null,
+
       newClass: {
         code: "",
         name: "",
@@ -198,41 +257,20 @@ export default class Welcome extends Component {
       },
     };
   }
+
   componentDidMount() {
-  const storedUserDetails = sessionStorage.getItem("userDetails");
-  if (storedUserDetails) {
-    const getUserDetails = JSON.parse(storedUserDetails);
+    const storedUserDetails = sessionStorage.getItem("userDetails");
 
-    this.setState({
-      username: getUserDetails.username || "Student",
-    });
-  }
-
-  this.loadClassesAndUnits();
-}
-
-  loadAccount = async () => {
-    try {
-      const accountId = getStoredAccountId();
-      const response = await getAccount(accountId);
-
-      const account = response?.account || response?.user || response?.data || response;
-      const currentUser = getStoredUserDetails() || {};
-
-      const updatedUser = {
-        ...currentUser,
-        ...account,
-      };
-
-      sessionStorage.setItem("userDetails", JSON.stringify(updatedUser));
+    if (storedUserDetails) {
+      const getUserDetails = JSON.parse(storedUserDetails);
 
       this.setState({
-        username: updatedUser.username || updatedUser.name || "Student",
+        username: getUserDetails.username || "Student",
       });
-    } catch (error) {
-      console.log("Account backend not reachable right now:", error.message);
     }
-  };
+
+    this.loadClassesAndUnits();
+  }
 
   formatDate = (value) => {
     if (!value) {
@@ -292,16 +330,13 @@ export default class Welcome extends Component {
       size: file.size || file.fileSize || null,
       src,
       fileObject: file.fileObject || null,
+      comments: file.comments || [],
     };
   };
 
   normalizeNote = (note, fallbackUnit = null) => {
     const rawFiles =
-      note.files ||
-      note.attachments ||
-      note.images ||
-      note.documents ||
-      [];
+      note.files || note.attachments || note.images || note.documents || [];
 
     const unitId =
       note.unitId ||
@@ -321,7 +356,8 @@ export default class Welcome extends Component {
     return {
       id: note.id || `${Date.now()}-${Math.random()}`,
       title: note.title || note.name || "Untitled Note",
-      content: note.content || note.body || note.text || "No content added yet.",
+      content:
+        note.content || note.body || note.text || "No content added yet.",
       tags: note.tags || [],
       date: this.formatDate(note.createdAt || note.updatedAt || note.date),
       unitId: String(unitId),
@@ -353,7 +389,7 @@ export default class Welcome extends Component {
       id: unit.id,
       name: unit.name || "Untitled Unit",
       classId: String(
-        unit.classId || unit.courseId || unit.myClassId || myClass.id || ""
+        unit.classId || unit.courseId || unit.myClassId || myClass.id || "",
       ),
       className: myClass.name || "",
       classCode: myClass.code || "",
@@ -361,7 +397,7 @@ export default class Welcome extends Component {
     };
 
     normalizedUnit.notes = this.toArray(unit.notes).map((note) =>
-      this.normalizeNote(note, normalizedUnit)
+      this.normalizeNote(note, normalizedUnit),
     );
 
     return normalizedUnit;
@@ -391,7 +427,9 @@ export default class Welcome extends Component {
 
       const selectedClassId = classes[0] ? String(classes[0].id) : "";
       const selectedUnits = unitsByClassId[selectedClassId] || [];
-      const selectedUnitId = selectedUnits[0] ? String(selectedUnits[0].id) : "";
+      const selectedUnitId = selectedUnits[0]
+        ? String(selectedUnits[0].id)
+        : "";
 
       this.setState({
         classes,
@@ -414,7 +452,7 @@ export default class Welcome extends Component {
 
   getSelectedCourse = () => {
     return this.state.classes.find(
-      (course) => String(course.id) === String(this.state.selectedClassId)
+      (course) => String(course.id) === String(this.state.selectedClassId),
     );
   };
 
@@ -422,7 +460,7 @@ export default class Welcome extends Component {
     const units = this.getUnitsForClass(this.state.selectedClassId);
 
     return units.find(
-      (unit) => String(unit.id) === String(this.state.selectedUnitId)
+      (unit) => String(unit.id) === String(this.state.selectedUnitId),
     );
   };
 
@@ -433,10 +471,10 @@ export default class Welcome extends Component {
   };
 
   logOut = (e) => {
-  e.preventDefault();
-  sessionStorage.clear();
-  this.props.history.push("/signin");
-};
+    e.preventDefault();
+    sessionStorage.clear();
+    this.props.history.push("/signin");
+  };
 
   setActiveSection = (section) => {
     this.setState({ activeSection: section });
@@ -614,6 +652,7 @@ export default class Welcome extends Component {
       size: file.size,
       src: URL.createObjectURL(file),
       fileObject: file,
+      comments: [],
     }));
 
     this.setState((prevState) => ({
@@ -690,7 +729,7 @@ export default class Welcome extends Component {
     }
 
     const selectedUnit = this.getUnitsForClass(classId).find(
-      (unit) => String(unit.id) === String(unitId)
+      (unit) => String(unit.id) === String(unitId),
     );
 
     const savedNote = this.normalizeNote(
@@ -707,7 +746,7 @@ export default class Welcome extends Component {
         unitId,
         classId,
       },
-      selectedUnit
+      selectedUnit,
     );
 
     this.addNoteToLocalState(savedNote, classId, unitId);
@@ -725,12 +764,53 @@ export default class Welcome extends Component {
     return file.src || file.url || file.downloadUrl || file.fileUrl || "";
   };
 
-  openFileViewer = (file) => {
-    this.setState({ selectedFile: file });
+  openFileViewer = (file, noteId) => {
+    const fileWithNoteId = {
+      ...file,
+      noteId: noteId,
+    };
+
+    this.setState((prevState) => ({
+      selectedFile: fileWithNoteId,
+
+      videoCurrentTime: 0,
+      newVideoComment: "",
+      editingVideoCommentId: null,
+
+      pdfCurrentPage: 1,
+      pdfDraftComment: "",
+      pdfSelectionStart: null,
+      pdfSelectionRect: null,
+      isSelectingPdfRegion: false,
+      editingPdfCommentId: null,
+
+      videoComments: {
+        ...prevState.videoComments,
+        [file.id]: prevState.videoComments[file.id] || file.comments || [],
+      },
+
+      pdfComments: {
+        ...prevState.pdfComments,
+        [file.id]: prevState.pdfComments[file.id] || file.comments || [],
+      },
+    }));
   };
 
   closeFileViewer = () => {
-    this.setState({ selectedFile: null });
+    this.setState({
+      selectedFile: null,
+
+      newVideoComment: "",
+      videoCurrentTime: 0,
+      editingVideoCommentId: null,
+
+      pdfCurrentPage: 1,
+      pdfDraftComment: "",
+      pdfSelectionStart: null,
+      pdfSelectionRect: null,
+      isSelectingPdfRegion: false,
+      editingPdfCommentId: null,
+    });
   };
 
   downloadFile = (file) => {
@@ -750,6 +830,348 @@ export default class Welcome extends Component {
     document.body.removeChild(link);
   };
 
+  handleVideoTimeUpdate = (e) => {
+    this.setState({
+      videoCurrentTime: e.target.currentTime,
+    });
+  };
+
+  handleVideoCommentChange = (e) => {
+    this.setState({
+      newVideoComment: e.target.value,
+    });
+  };
+
+  formatVideoTime = (seconds) => {
+    const safeSeconds = Number.isFinite(seconds) ? seconds : 0;
+    const mins = Math.floor(safeSeconds / 60);
+    const secs = Math.floor(safeSeconds % 60);
+
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
+
+  getVideoWindow = () => {
+    const start = Math.floor(this.state.videoCurrentTime / 30) * 30;
+    const end = start + 30;
+
+    return { start, end };
+  };
+
+  getVisibleVideoComments = () => {
+    const { selectedFile, videoComments } = this.state;
+
+    if (!selectedFile) {
+      return [];
+    }
+
+    const { start, end } = this.getVideoWindow();
+    const comments = videoComments[selectedFile.id] || [];
+
+    return comments
+      .filter((item) => item.timestamp >= start && item.timestamp < end)
+      .sort((a, b) => a.timestamp - b.timestamp);
+  };
+
+  editVideoComment = (comment) => {
+    this.setState({
+      newVideoComment: comment.comment,
+      editingVideoCommentId: comment.comment_id || comment.id,
+    });
+  };
+
+  deleteVideoComment = (comment) => {
+    const { selectedFile } = this.state;
+
+    if (!selectedFile) {
+      return;
+    }
+
+    const commentId = comment.comment_id || comment.id;
+
+    const payload = {
+      note_id: selectedFile.noteId,
+      comment_id: commentId,
+      timestamp: Number(comment.timestamp),
+    };
+
+    console.log("Delete video comment backend payload:", payload);
+
+    this.setState((prevState) => ({
+      videoComments: {
+        ...prevState.videoComments,
+        [selectedFile.id]: (
+          prevState.videoComments[selectedFile.id] || []
+        ).filter((item) => (item.comment_id || item.id) !== commentId),
+      },
+    }));
+  };
+
+  submitVideoComment = (e) => {
+    e.preventDefault();
+
+    const {
+      selectedFile,
+      newVideoComment,
+      videoCurrentTime,
+      editingVideoCommentId,
+    } = this.state;
+
+    if (!selectedFile || !newVideoComment.trim()) {
+      return;
+    }
+
+    const commentId = editingVideoCommentId || Date.now();
+
+    const payload = {
+      note_id: selectedFile.noteId,
+      comment: newVideoComment.trim(),
+      comment_id: commentId,
+      timestamp: Number(videoCurrentTime.toFixed(2)),
+    };
+
+    console.log("Video comment backend payload:", payload);
+
+    this.setState((prevState) => {
+      const existingComments = prevState.videoComments[selectedFile.id] || [];
+
+      const updatedComments = editingVideoCommentId
+        ? existingComments.map((item) =>
+            item.comment_id === editingVideoCommentId
+              ? { ...item, ...payload, id: item.id }
+              : item,
+          )
+        : [
+            ...existingComments,
+            {
+              id: commentId,
+              ...payload,
+            },
+          ];
+
+      return {
+        videoComments: {
+          ...prevState.videoComments,
+          [selectedFile.id]: updatedComments,
+        },
+        newVideoComment: "",
+        editingVideoCommentId: null,
+      };
+    });
+  };
+
+  getPdfCommentsForCurrentPage = () => {
+    const { selectedFile, pdfComments, pdfCurrentPage } = this.state;
+
+    if (!selectedFile) {
+      return [];
+    }
+
+    return (pdfComments[selectedFile.id] || []).filter(
+      (comment) => Number(comment.page_number) === Number(pdfCurrentPage),
+    );
+  };
+
+  handlePdfPageChange = (direction) => {
+    this.setState((prevState) => ({
+      pdfCurrentPage: Math.max(1, prevState.pdfCurrentPage + direction),
+      pdfSelectionStart: null,
+      pdfSelectionRect: null,
+      pdfDraftComment: "",
+      editingPdfCommentId: null,
+    }));
+  };
+
+  getPdfPointerPercent = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    const y = ((e.clientY - rect.top) / rect.height) * 100;
+
+    return {
+      x: Math.max(0, Math.min(100, x)),
+      y: Math.max(0, Math.min(100, y)),
+    };
+  };
+
+  startPdfSelection = (e) => {
+    if (e.button !== 0) {
+      return;
+    }
+
+    const start = this.getPdfPointerPercent(e);
+
+    this.setState({
+      isSelectingPdfRegion: true,
+      pdfSelectionStart: start,
+      pdfSelectionRect: {
+        x: start.x,
+        y: start.y,
+        width: 0,
+        height: 0,
+      },
+      editingPdfCommentId: null,
+      pdfDraftComment: "",
+    });
+  };
+
+  movePdfSelection = (e) => {
+    const { isSelectingPdfRegion, pdfSelectionStart } = this.state;
+
+    if (!isSelectingPdfRegion || !pdfSelectionStart) {
+      return;
+    }
+
+    const current = this.getPdfPointerPercent(e);
+
+    this.setState({
+      pdfSelectionRect: {
+        x: Math.min(pdfSelectionStart.x, current.x),
+        y: Math.min(pdfSelectionStart.y, current.y),
+        width: Math.abs(current.x - pdfSelectionStart.x),
+        height: Math.abs(current.y - pdfSelectionStart.y),
+      },
+    });
+  };
+
+  endPdfSelection = () => {
+    const { pdfSelectionRect } = this.state;
+
+    if (
+      !pdfSelectionRect ||
+      pdfSelectionRect.width < 1 ||
+      pdfSelectionRect.height < 1
+    ) {
+      this.setState({
+        isSelectingPdfRegion: false,
+        pdfSelectionStart: null,
+        pdfSelectionRect: null,
+      });
+      return;
+    }
+
+    this.setState({
+      isSelectingPdfRegion: false,
+    });
+  };
+
+  handlePdfDraftChange = (e) => {
+    this.setState({
+      pdfDraftComment: e.target.value,
+    });
+  };
+
+  savePdfComment = (e) => {
+    e.preventDefault();
+
+    const {
+      selectedFile,
+      pdfDraftComment,
+      pdfSelectionRect,
+      pdfCurrentPage,
+      editingPdfCommentId,
+    } = this.state;
+
+    if (!selectedFile || !pdfDraftComment.trim()) {
+      return;
+    }
+
+    if (!editingPdfCommentId && !pdfSelectionRect) {
+      alert("Drag over the PDF to select an area before saving a comment.");
+      return;
+    }
+
+    const commentId = editingPdfCommentId || Date.now();
+
+    const existingComment = (
+      this.state.pdfComments[selectedFile.id] || []
+    ).find((item) => (item.comment_id || item.id) === editingPdfCommentId);
+
+    const region = editingPdfCommentId ? existingComment : pdfSelectionRect;
+
+    const payload = {
+      note_id: selectedFile.noteId,
+      comment: pdfDraftComment.trim(),
+      comment_id: commentId,
+      x: Number(region.x.toFixed(2)),
+      y: Number(region.y.toFixed(2)),
+      width: Number(region.width.toFixed(2)),
+      height: Number(region.height.toFixed(2)),
+      page_number: pdfCurrentPage,
+    };
+
+    console.log("PDF comment backend payload:", payload);
+
+    this.setState((prevState) => {
+      const existingComments = prevState.pdfComments[selectedFile.id] || [];
+
+      const updatedComments = editingPdfCommentId
+        ? existingComments.map((item) =>
+            (item.comment_id || item.id) === editingPdfCommentId
+              ? { ...item, ...payload, id: item.id }
+              : item,
+          )
+        : [
+            ...existingComments,
+            {
+              id: commentId,
+              ...payload,
+            },
+          ];
+
+      return {
+        pdfComments: {
+          ...prevState.pdfComments,
+          [selectedFile.id]: updatedComments,
+        },
+        pdfDraftComment: "",
+        pdfSelectionStart: null,
+        pdfSelectionRect: null,
+        editingPdfCommentId: null,
+      };
+    });
+  };
+
+  editPdfComment = (comment) => {
+    this.setState({
+      pdfDraftComment: comment.comment,
+      editingPdfCommentId: comment.comment_id || comment.id,
+      pdfSelectionRect: {
+        x: comment.x,
+        y: comment.y,
+        width: comment.width,
+        height: comment.height,
+      },
+      pdfCurrentPage: comment.page_number,
+    });
+  };
+
+  deletePdfComment = (comment) => {
+    const { selectedFile } = this.state;
+
+    if (!selectedFile) {
+      return;
+    }
+
+    const commentId = comment.comment_id || comment.id;
+
+    const payload = {
+      note_id: selectedFile.noteId,
+      comment_id: commentId,
+      page_number: comment.page_number,
+    };
+
+    console.log("Delete PDF comment backend payload:", payload);
+
+    this.setState((prevState) => ({
+      pdfComments: {
+        ...prevState.pdfComments,
+        [selectedFile.id]: (
+          prevState.pdfComments[selectedFile.id] || []
+        ).filter((item) => (item.comment_id || item.id) !== commentId),
+      },
+    }));
+  };
+
   renderDashboard() {
     const { classes, unitsByClassId, loadingData, loadError } = this.state;
     const allUnits = Object.values(unitsByClassId).flat();
@@ -764,7 +1186,10 @@ export default class Welcome extends Component {
         <div className="error-card">
           <h3>Mock data issue</h3>
           <p>{loadError}</p>
-          <button className="secondary-button" onClick={this.loadClassesAndUnits}>
+          <button
+            className="secondary-button"
+            onClick={this.loadClassesAndUnits}
+          >
             Try Again
           </button>
         </div>
@@ -779,7 +1204,10 @@ export default class Welcome extends Component {
             <h2>Overview</h2>
           </div>
 
-          <button className="new-note-button" onClick={() => this.openNewNoteModal()}>
+          <button
+            className="new-note-button"
+            onClick={() => this.openNewNoteModal()}
+          >
             + New Note
           </button>
         </div>
@@ -808,7 +1236,8 @@ export default class Welcome extends Component {
           <div>
             <h3>Go to Classes</h3>
             <p>
-              View mock classes, open class pages, and test image, PDF, and video notes.
+              View mock classes, open class pages, and test image, PDF, and
+              video notes.
             </p>
           </div>
 
@@ -832,7 +1261,10 @@ export default class Welcome extends Component {
         <div className="error-card">
           <h3>Mock data issue</h3>
           <p>{loadError}</p>
-          <button className="secondary-button" onClick={this.loadClassesAndUnits}>
+          <button
+            className="secondary-button"
+            onClick={this.loadClassesAndUnits}
+          >
             Try Again
           </button>
         </div>
@@ -864,7 +1296,10 @@ export default class Welcome extends Component {
               Add Class
             </button>
 
-            <button className="secondary-button" onClick={this.loadClassesAndUnits}>
+            <button
+              className="secondary-button"
+              onClick={this.loadClassesAndUnits}
+            >
               Refresh
             </button>
           </div>
@@ -875,7 +1310,7 @@ export default class Welcome extends Component {
             const units = unitsByClassId[String(course.id)] || [];
             const noteCount = units.reduce(
               (total, unit) => total + (unit.notes ? unit.notes.length : 0),
-              0
+              0,
             );
 
             return (
@@ -902,7 +1337,9 @@ export default class Welcome extends Component {
                   Professor: {course.professor || "Not assigned"}
                 </p>
 
-                {course.year && <p className="course-meta">Year: {course.year}</p>}
+                {course.year && (
+                  <p className="course-meta">Year: {course.year}</p>
+                )}
 
                 <div className="course-card-footer">
                   <span>{units.length} units</span>
@@ -918,7 +1355,7 @@ export default class Welcome extends Component {
 
   renderClassDetail() {
     const selectedCourse = this.state.classes.find(
-      (course) => String(course.id) === String(this.state.selectedClassPageId)
+      (course) => String(course.id) === String(this.state.selectedClassPageId),
     );
 
     if (!selectedCourse) {
@@ -936,7 +1373,7 @@ export default class Welcome extends Component {
     const units = this.getUnitsForClass(selectedCourse.id);
     const noteCount = units.reduce(
       (total, unit) => total + (unit.notes ? unit.notes.length : 0),
-      0
+      0,
     );
 
     return (
@@ -993,7 +1430,9 @@ export default class Welcome extends Component {
                   <div className="unit-detail-actions">
                     <button
                       className="secondary-button"
-                      onClick={() => this.selectUnit(selectedCourse.id, unit.id)}
+                      onClick={() =>
+                        this.selectUnit(selectedCourse.id, unit.id)
+                      }
                     >
                       View Notes
                     </button>
@@ -1019,8 +1458,12 @@ export default class Welcome extends Component {
   renderNotes() {
     const selectedCourse = this.getSelectedCourse();
     const selectedUnit = this.getSelectedUnit();
-    const unitsForSelectedClass = this.getUnitsForClass(this.state.selectedClassId);
-    const notesToShow = selectedUnit ? selectedUnit.notes || [] : this.getAllNotes();
+    const unitsForSelectedClass = this.getUnitsForClass(
+      this.state.selectedClassId,
+    );
+    const notesToShow = selectedUnit
+      ? selectedUnit.notes || []
+      : this.getAllNotes();
 
     return (
       <section className="notes-section">
@@ -1035,7 +1478,10 @@ export default class Welcome extends Component {
             </p>
           </div>
 
-          <button className="new-note-button" onClick={() => this.openNewNoteModal()}>
+          <button
+            className="new-note-button"
+            onClick={() => this.openNewNoteModal()}
+          >
             + New Note
           </button>
         </div>
@@ -1079,7 +1525,7 @@ export default class Welcome extends Component {
               onClick={() =>
                 this.openNewNoteModal(
                   this.state.selectedClassId,
-                  this.state.selectedUnitId
+                  this.state.selectedUnitId,
                 )
               }
             >
@@ -1117,12 +1563,19 @@ export default class Welcome extends Component {
                           alt={file.name}
                           className="note-image-thumb"
                         />
-                      ) : (
+                      ) : file.type && file.type.startsWith("video/") ? (
                         <div key={file.id} className="note-file-badge">
-                          <span>{file.name.split(".").pop().toUpperCase()}</span>
+                          <span>VIDEO</span>
                           <p>{file.name}</p>
                         </div>
-                      )
+                      ) : (
+                        <div key={file.id} className="note-file-badge">
+                          <span>
+                            {file.name.split(".").pop().toUpperCase()}
+                          </span>
+                          <p>{file.name}</p>
+                        </div>
+                      ),
                     )}
                   </div>
                 )}
@@ -1150,7 +1603,10 @@ export default class Welcome extends Component {
               <p>Create a temporary local class for testing.</p>
             </div>
 
-            <button className="modal-close-button" onClick={this.closeNewClassModal}>
+            <button
+              className="modal-close-button"
+              onClick={this.closeNewClassModal}
+            >
               ×
             </button>
           </div>
@@ -1232,7 +1688,10 @@ export default class Welcome extends Component {
               <p>This note is temporarily saved in local React state.</p>
             </div>
 
-            <button className="modal-close-button" onClick={this.closeNewNoteModal}>
+            <button
+              className="modal-close-button"
+              onClick={this.closeNewNoteModal}
+            >
               ×
             </button>
           </div>
@@ -1327,7 +1786,11 @@ export default class Welcome extends Component {
                         <img src={file.src} alt={file.name} />
                       ) : (
                         <div className="file-preview-icon">
-                          <span>{file.name.split(".").pop().toUpperCase()}</span>
+                          <span>
+                            {file.type && file.type.startsWith("video/")
+                              ? "VIDEO"
+                              : file.name.split(".").pop().toUpperCase()}
+                          </span>
                           <p>{file.name}</p>
                         </div>
                       )}
@@ -1385,7 +1848,10 @@ export default class Welcome extends Component {
               </p>
             </div>
 
-            <button className="modal-close-button" onClick={this.closeNotePopup}>
+            <button
+              className="modal-close-button"
+              onClick={this.closeNotePopup}
+            >
               ×
             </button>
           </div>
@@ -1436,7 +1902,7 @@ export default class Welcome extends Component {
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
-                            this.openFileViewer(file);
+                            this.openFileViewer(file, selectedNote.id);
                           }}
                         >
                           View
@@ -1464,7 +1930,7 @@ export default class Welcome extends Component {
   }
 
   renderFileViewerPopup() {
-    const { selectedFile } = this.state;
+    const { selectedFile, newVideoComment, videoCurrentTime } = this.state;
 
     if (!selectedFile) return null;
 
@@ -1472,17 +1938,28 @@ export default class Welcome extends Component {
     const isImage = selectedFile.type && selectedFile.type.startsWith("image/");
     const isPdf = selectedFile.type === "application/pdf";
     const isVideo = selectedFile.type && selectedFile.type.startsWith("video/");
+    const visibleComments = this.getVisibleVideoComments();
+    const { start, end } = this.getVideoWindow();
 
     return (
       <div className="modal-backdrop-custom file-viewer-backdrop">
-        <div className="file-viewer-modal">
+        <div
+          className={
+            isVideo
+              ? "file-viewer-modal video-viewer-modal"
+              : "file-viewer-modal"
+          }
+        >
           <div className="modal-header-custom">
             <div>
               <h2>{selectedFile.name}</h2>
               <p>{selectedFile.type || "Attached file"}</p>
             </div>
 
-            <button className="modal-close-button" onClick={this.closeFileViewer}>
+            <button
+              className="modal-close-button"
+              onClick={this.closeFileViewer}
+            >
               ×
             </button>
           </div>
@@ -1494,17 +1971,239 @@ export default class Welcome extends Component {
                 <p>This file does not have a valid preview URL.</p>
               </div>
             ) : isImage ? (
-              <img src={url} alt={selectedFile.name} className="file-viewer-image" />
-            ) : isVideo ? (
-              <video src={url} controls className="file-viewer-video">
-                Your browser does not support video playback.
-              </video>
-            ) : isPdf ? (
-              <iframe
+              <img
                 src={url}
-                title={selectedFile.name}
-                className="file-viewer-frame"
+                alt={selectedFile.name}
+                className="file-viewer-image"
               />
+            ) : isVideo ? (
+              <div className="video-review-layout">
+                <div className="video-player-panel">
+                  <video
+                    src={url}
+                    controls
+                    className="file-viewer-video"
+                    onTimeUpdate={this.handleVideoTimeUpdate}
+                  >
+                    Your browser does not support video playback.
+                  </video>
+
+                  <div className="video-time-info">
+                    <p>
+                      Current time:{" "}
+                      <strong>{this.formatVideoTime(videoCurrentTime)}</strong>
+                    </p>
+                    <p>
+                      Showing comments from{" "}
+                      <strong>{this.formatVideoTime(start)}</strong> to{" "}
+                      <strong>{this.formatVideoTime(end)}</strong>
+                    </p>
+                  </div>
+                </div>
+
+                <aside className="video-comments-panel">
+                  <div className="video-comments-header">
+                    <h3>Comments</h3>
+                    <p>Only comments within this 30-second window are shown.</p>
+                  </div>
+
+                  <form
+                    className="video-comment-form"
+                    onSubmit={this.submitVideoComment}
+                  >
+                    <label>
+                      Add comment at {this.formatVideoTime(videoCurrentTime)}
+                    </label>
+
+                    <textarea
+                      value={newVideoComment}
+                      onChange={this.handleVideoCommentChange}
+                      placeholder="Write a comment for this timestamp..."
+                      rows="3"
+                    />
+
+                    <button type="submit" className="save-note-button">
+                      Add Comment
+                    </button>
+                  </form>
+
+                  <div className="video-comments-list">
+                    {visibleComments.length === 0 ? (
+                      <div className="video-empty-comments">
+                        No comments in this 30-second section.
+                      </div>
+                    ) : (
+                      visibleComments.map((item) => (
+                        <div
+                          className="video-comment-card"
+                          key={item.comment_id || item.id}
+                        >
+                          <span>{this.formatVideoTime(item.timestamp)}</span>
+                          <p>{item.comment}</p>
+
+                          <div className="comment-actions">
+                            <button
+                              type="button"
+                              onClick={() => this.editVideoComment(item)}
+                            >
+                              Edit
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => this.deleteVideoComment(item)}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </aside>
+              </div>
+            ) : isPdf ? (
+              <div className="pdf-review-layout">
+                <div className="pdf-viewer-panel">
+                  <div className="pdf-toolbar">
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={() => this.handlePdfPageChange(-1)}
+                    >
+                      Previous Page
+                    </button>
+
+                    <span>Page {this.state.pdfCurrentPage}</span>
+
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={() => this.handlePdfPageChange(1)}
+                    >
+                      Next Page
+                    </button>
+                  </div>
+
+                  <div
+                    className="pdf-page-container"
+                    onMouseDown={this.startPdfSelection}
+                    onMouseMove={this.movePdfSelection}
+                    onMouseUp={this.endPdfSelection}
+                    onMouseLeave={this.endPdfSelection}
+                  >
+                    <iframe
+                      src={`${url}#page=${this.state.pdfCurrentPage}`}
+                      title={selectedFile.name}
+                      className="file-viewer-frame pdf-frame"
+                    />
+
+                    <div className="pdf-comment-layer">
+                      {this.getPdfCommentsForCurrentPage().map((comment) => (
+                        <button
+                          type="button"
+                          key={comment.comment_id || comment.id}
+                          className="pdf-comment-box"
+                          style={{
+                            left: `${comment.x}%`,
+                            top: `${comment.y}%`,
+                            width: `${comment.width}%`,
+                            height: `${comment.height}%`,
+                          }}
+                          title={comment.comment}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            this.editPdfComment(comment);
+                          }}
+                        />
+                      ))}
+
+                      {this.state.pdfSelectionRect && (
+                        <div
+                          className="pdf-selection-box"
+                          style={{
+                            left: `${this.state.pdfSelectionRect.x}%`,
+                            top: `${this.state.pdfSelectionRect.y}%`,
+                            width: `${this.state.pdfSelectionRect.width}%`,
+                            height: `${this.state.pdfSelectionRect.height}%`,
+                          }}
+                        />
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <aside className="pdf-comments-panel">
+                  <div className="video-comments-header">
+                    <h3>PDF Comments</h3>
+                    <p>
+                      Drag over the PDF to select an area, then add a comment.
+                    </p>
+                  </div>
+
+                  <form
+                    className="video-comment-form"
+                    onSubmit={this.savePdfComment}
+                  >
+                    <label>
+                      {this.state.editingPdfCommentId
+                        ? "Edit PDF comment"
+                        : "Add PDF comment"}
+                    </label>
+
+                    <textarea
+                      value={this.state.pdfDraftComment}
+                      onChange={this.handlePdfDraftChange}
+                      placeholder="Write a comment for the selected PDF area..."
+                      rows="3"
+                    />
+
+                    <button type="submit" className="save-note-button">
+                      {this.state.editingPdfCommentId
+                        ? "Update Comment"
+                        : "Save Comment"}
+                    </button>
+                  </form>
+
+                  <div className="video-comments-list">
+                    {this.getPdfCommentsForCurrentPage().length === 0 ? (
+                      <div className="video-empty-comments">
+                        No comments on this page yet.
+                      </div>
+                    ) : (
+                      this.getPdfCommentsForCurrentPage().map((comment) => (
+                        <div
+                          className="video-comment-card"
+                          key={comment.comment_id || comment.id}
+                        >
+                          <span>
+                            Page {comment.page_number} • x:{comment.x}% y:
+                            {comment.y}%
+                          </span>
+
+                          <p>{comment.comment}</p>
+
+                          <div className="comment-actions">
+                            <button
+                              type="button"
+                              onClick={() => this.editPdfComment(comment)}
+                            >
+                              Edit
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => this.deletePdfComment(comment)}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </aside>
+              </div>
             ) : (
               <iframe
                 src={url}
@@ -1531,7 +2230,8 @@ export default class Welcome extends Component {
   renderCurrentSection() {
     if (this.state.activeSection === "dashboard") return this.renderDashboard();
     if (this.state.activeSection === "classes") return this.renderClasses();
-    if (this.state.activeSection === "classDetail") return this.renderClassDetail();
+    if (this.state.activeSection === "classDetail")
+      return this.renderClassDetail();
     if (this.state.activeSection === "notes") return this.renderNotes();
 
     return this.renderDashboard();

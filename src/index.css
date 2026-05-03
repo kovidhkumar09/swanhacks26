@@ -144,3 +144,18 @@ code {
 .save-note-button:hover {
   background: linear-gradient(135deg, var(--primary-dark), var(--primary));
 }
+
+.pdf-viewer-wrapper {
+  display: flex;
+  height: 100%;
+}
+
+.file-viewer-frame {
+  flex: 2;
+}
+
+.pdf-comments-panel {
+  flex: 1;
+  overflow-y: auto;
+  padding-left: 12px;
+}

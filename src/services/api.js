@@ -9,6 +9,24 @@ export const API_URLS = {
   getAccount: (accountId) => `${API_BASE_URL}/accounts/${accountId}/account`,
   updateAccount: (accountId) => `${API_BASE_URL}/accounts/${accountId}/update`,
   deleteAccount: (accountId) => `${API_BASE_URL}/accounts/${accountId}/delete`,
+
+  // Video timestamp comments
+  addVideoComment: (noteId) => `${API_BASE_URL}/notes/${noteId}/timestamps/add`,
+  getVideoComments: (noteId) =>
+    `${API_BASE_URL}/notes/${noteId}/timestamps/get/all`,
+  updateVideoComment: (noteId, commentId) =>
+    `${API_BASE_URL}/notes/${noteId}/timestamps/${commentId}/update`,
+  deleteVideoComment: (noteId, commentId) =>
+    `${API_BASE_URL}/notes/${noteId}/timestamps/${commentId}/delete`,
+
+  // PDF comments — change these paths if your backend names them differently
+  addPdfComment: (noteId) => `${API_BASE_URL}/notes/${noteId}/pdf-comments/add`,
+  getPdfComments: (noteId) =>
+    `${API_BASE_URL}/notes/${noteId}/pdf-comments/get/all`,
+  updatePdfComment: (noteId, commentId) =>
+    `${API_BASE_URL}/notes/${noteId}/pdf-comments/${commentId}/update`,
+  deletePdfComment: (noteId, commentId) =>
+    `${API_BASE_URL}/notes/${noteId}/pdf-comments/${commentId}/delete`,
 };
 
 export function getStoredToken() {
@@ -69,10 +87,7 @@ export function saveAuthSession(response, fallbackUser = {}) {
       2,
 
     username:
-      account.username ||
-      account.name ||
-      fallbackUser.username ||
-      "Student",
+      account.username || account.name || fallbackUser.username || "Student",
   };
 
   sessionStorage.setItem("userDetails", JSON.stringify(userDetails));
@@ -159,6 +174,58 @@ export function updateAccount(accountId = getStoredAccountId(), updatedData) {
 
 export function deleteAccount(accountId = getStoredAccountId()) {
   return apiFetch(API_URLS.deleteAccount(accountId), {
+    method: "DELETE",
+  });
+}
+
+export function addVideoComment(noteId, payload) {
+  return apiFetch(API_URLS.addVideoComment(noteId), {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function getVideoComments(noteId) {
+  return apiFetch(API_URLS.getVideoComments(noteId), {
+    method: "GET",
+  });
+}
+
+export function updateVideoComment(noteId, commentId, payload) {
+  return apiFetch(API_URLS.updateVideoComment(noteId, commentId), {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteVideoCommentById(noteId, commentId) {
+  return apiFetch(API_URLS.deleteVideoComment(noteId, commentId), {
+    method: "DELETE",
+  });
+}
+
+export function addPdfComment(noteId, payload) {
+  return apiFetch(API_URLS.addPdfComment(noteId), {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function getPdfComments(noteId) {
+  return apiFetch(API_URLS.getPdfComments(noteId), {
+    method: "GET",
+  });
+}
+
+export function updatePdfComment(noteId, commentId, payload) {
+  return apiFetch(API_URLS.updatePdfComment(noteId, commentId), {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deletePdfCommentById(noteId, commentId) {
+  return apiFetch(API_URLS.deletePdfComment(noteId, commentId), {
     method: "DELETE",
   });
 }
