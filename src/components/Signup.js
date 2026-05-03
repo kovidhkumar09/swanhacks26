@@ -1,5 +1,6 @@
 import React, { Component } from "react";
 import { Link } from "react-router-dom";
+import { registerUser, saveAuthSession } from "../services/api";
 
 export default class SignUp extends Component {
   constructor(props) {
@@ -8,24 +9,61 @@ export default class SignUp extends Component {
     this.state = {
       username: "",
       password: "",
+      loading: false,
+      error: "",
     };
   }
 
-  handleSubmit = (e) => {
+  handleSubmit = async (e) => {
     e.preventDefault();
-    let userDetails = JSON.stringify(this.state)
-    sessionStorage.setItem("userDetails", userDetails);
-    const token = Math.random().toString(36).substr(2) + "." + Math.random().toString(36).substr(2)
-    sessionStorage.setItem('token', token)
-    this.props.history.push("/signin");
+
+    this.setState({
+      loading: true,
+      error: "",
+    });
+
+    try {
+      const response = await registerUser(
+        this.state.username,
+        this.state.password
+      );
+
+      const token =
+        response?.token ||
+        response?.jwt ||
+        response?.accessToken ||
+        response?.bearerToken;
+
+      if (token) {
+        saveAuthSession(response, {
+          username: this.state.username,
+        });
+
+        this.props.history.push("/welcome");
+      } else {
+        alert("Account created successfully. Please log in.");
+        this.props.history.push("/signin");
+      }
+    } catch (error) {
+      this.setState({
+        loading: false,
+        error: error.message || "Registration failed. Please try again.",
+      });
+    }
   };
 
   render() {
-    
     return (
       <div className="d-flex align-items-center loginBox">
         <form onSubmit={this.handleSubmit} className="form-signin bg-white">
           <h3>Sign Up</h3>
+
+          {this.state.error && (
+            <p className="forgot-password" style={{ color: "#e53e3e" }}>
+              {this.state.error}
+            </p>
+          )}
+
           <input
             type="text"
             id="inputName"
@@ -35,15 +73,7 @@ export default class SignUp extends Component {
             placeholder="Username"
             required
           />
-          <input
-            type="email"
-            id="inputEmail"
-            className="form-control"
-            value={this.state.email}
-            onChange={(e) => this.setState({ email: e.target.value })}
-            placeholder="Email address"
-            required
-          />
+
           <input
             type="password"
             id="inputPassword"
@@ -55,11 +85,18 @@ export default class SignUp extends Component {
           />
 
           <div className="d-grid my-2">
-            <button type="submit" className="btn btn-primary btn-block mb-3">
-              SignUp
+            <button
+              type="submit"
+              className="btn btn-primary btn-block mb-3"
+              disabled={this.state.loading}
+            >
+              {this.state.loading ? "Creating Account..." : "Sign Up"}
             </button>
           </div>
 
+          <div className="forgot-password">
+            Already have an account? <Link to="/signin">Login</Link>
+          </div>
         </form>
       </div>
     );
