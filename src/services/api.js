@@ -16,8 +16,13 @@ export const API_URLS = {
   deleteAccount: (accountId) => `${API_BASE_URL}/accounts/${accountId}/delete`,
 
   classes: `${APP_V1_BASE_URL}/classes`,
+  classesAll: `${APP_V1_BASE_URL}/classes/all`,
+
   units: `${APP_V1_BASE_URL}/units`,
+  unitsAll: `${APP_V1_BASE_URL}/units/all`,
+
   notes: `${APP_V1_BASE_URL}/notes`,
+  notesAll: `${APP_V1_BASE_URL}/notes/all`,
   textEntryNotes: `${APP_V1_BASE_URL}/notes/textentry`,
   links: `${APP_V1_BASE_URL}/links`,
 
@@ -162,6 +167,57 @@ export async function apiFetch(url, options = {}) {
   return data;
 }
 
+export function apiFetchWithJsonBody(url, options = {}) {
+  const token = getStoredToken();
+  const method = options.method || "GET";
+  const body = options.body || null;
+
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+
+    xhr.open(method, url, true);
+    xhr.setRequestHeader("Content-Type", "application/json");
+
+    if (token) {
+      xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+    }
+
+    if (options.headers) {
+      Object.entries(options.headers).forEach(([key, value]) => {
+        xhr.setRequestHeader(key, value);
+      });
+    }
+
+    xhr.onload = () => {
+      let data = null;
+
+      try {
+        data = xhr.responseText ? JSON.parse(xhr.responseText) : null;
+      } catch {
+        data = xhr.responseText;
+      }
+
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(data);
+      } else {
+        const message =
+          data?.message ||
+          data?.error ||
+          data ||
+          `Request failed with status ${xhr.status}`;
+
+        reject(new Error(message));
+      }
+    };
+
+    xhr.onerror = () => {
+      reject(new Error("Network request failed."));
+    };
+
+    xhr.send(body ? JSON.stringify(body) : null);
+  });
+}
+
 export function loginUser(username, password) {
   return apiFetch(API_URLS.login, {
     method: "POST",
@@ -279,4 +335,60 @@ export function deleteGenericCommentById(noteId, commentId) {
   return apiFetch(API_URLS.deleteGenericComment(noteId, commentId), {
     method: "DELETE",
   });
+}
+
+export function getClassByName(name) {
+  return apiFetch(API_URLS.classByName(name), {
+    method: "GET",
+  });
+}
+
+export function getUnitsByBody(payload) {
+  return apiFetchWithJsonBody(API_URLS.units, {
+    method: "GET",
+    body: payload,
+  });
+}
+
+export function getNotesByBody(payload) {
+  return apiFetchWithJsonBody(API_URLS.notes, {
+    method: "GET",
+    body: payload,
+  });
+}
+
+export function createClassBackend(payload) {
+  return apiFetch(API_URLS.classes, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function createUnitBackend(payload) {
+  return apiFetch(API_URLS.units, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function createTextNoteBackend(payload) {
+  return apiFetch(API_URLS.textEntryNotes, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function createFileNoteBackend(unitId, title, file) {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  return apiFetch(
+    `${API_URLS.notes}?unitId=${encodeURIComponent(
+      unitId,
+    )}&title=${encodeURIComponent(title)}`,
+    {
+      method: "POST",
+      body: formData,
+    },
+  );
 }

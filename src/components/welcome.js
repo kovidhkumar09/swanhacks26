@@ -254,6 +254,8 @@ export default class Welcome extends Component {
       genericDraftComment: "",
       editingGenericCommentId: null,
 
+      theme: localStorage.getItem("theme") || "light",
+
       newClass: {
         code: "",
         name: "",
@@ -273,7 +275,19 @@ export default class Welcome extends Component {
     };
   }
 
+  toggleTheme = () => {
+    this.setState(
+      (prev) => ({
+        theme: prev.theme === "light" ? "dark" : "light",
+      }),
+      () => {
+        document.body.className = this.state.theme;
+        localStorage.setItem("theme", this.state.theme);
+      },
+    );
+  };
   componentDidMount() {
+    document.body.className = this.state.theme;
     const storedUserDetails = sessionStorage.getItem("userDetails");
 
     if (storedUserDetails) {
@@ -422,37 +436,25 @@ export default class Welcome extends Component {
     this.setState({ loadingData: true, loadError: "" });
 
     try {
-      const classesData = await apiFetch(API_URLS.classes, {
-        method: "GET",
-      });
-
-      const unitsData = await apiFetch(API_URLS.units, {
-        method: "GET",
-      });
-
-      /*
-      NOTE:
-      Your Swagger shows GET /app/v1/notes using className and unitName.
-      If your backend requires those values, we may need to fetch notes per unit instead.
-      This generic call may need adjustment depending on how your backend handles GET /notes.
-    */
-      let notesData = [];
-
-      try {
-        notesData = await apiFetch(API_URLS.notes, {
+      const [classesData, unitsData, notesData] = await Promise.all([
+        apiFetch(API_URLS.classesAll, {
           method: "GET",
-        });
-      } catch (error) {
-        console.log("Could not load notes directly:", error.message);
-        notesData = [];
-      }
+        }),
+        apiFetch(API_URLS.unitsAll, {
+          method: "GET",
+        }),
+        apiFetch(API_URLS.notesAll, {
+          method: "GET",
+        }),
+      ]);
 
-      const classes = this.toArray(classesData?.data || classesData).map(
-        this.normalizeCourse,
-      );
-
+      const rawClasses = this.toArray(classesData?.data || classesData);
       const rawUnits = this.toArray(unitsData?.data || unitsData);
       const rawNotes = this.toArray(notesData?.data || notesData);
+
+      const classes = rawClasses
+        .map(this.normalizeCourse)
+        .filter((course) => course.id || course.name);
 
       const unitsByClassId = {};
 
@@ -461,19 +463,47 @@ export default class Welcome extends Component {
       });
 
       rawUnits.forEach((rawUnit) => {
-        const unit = this.normalizeUnit(rawUnit);
+        const myClass =
+          rawUnit.myClass ||
+          rawUnit.class ||
+          rawUnit.course ||
+          rawUnit.classes ||
+          {};
 
-        unit.notes = rawNotes
+        const classId =
+          rawUnit.classId ||
+          rawUnit.myClassId ||
+          rawUnit.courseId ||
+          myClass.id ||
+          "";
+
+        const unit = this.normalizeUnit({
+          ...rawUnit,
+          myClass,
+          classId,
+        });
+
+        const unitNotes = rawNotes
           .filter((note) => {
+            const noteUnit =
+              note.unit ||
+              note.myUnit ||
+              note.unitDTO ||
+              note.unitResponse ||
+              {};
+
             const noteUnitId =
               note.unitId ||
-              note.unit?.id ||
-              note.myUnit?.id ||
-              note.unit?.unitId;
+              note.myUnitId ||
+              noteUnit.id ||
+              noteUnit.unitId ||
+              "";
 
             return String(noteUnitId) === String(unit.id);
           })
           .map((note) => this.normalizeNote(note, unit));
+
+        unit.notes = unitNotes;
 
         const key = String(unit.classId);
 
@@ -496,11 +526,13 @@ export default class Welcome extends Component {
         selectedClassId,
         selectedUnitId,
         loadingData: false,
+        loadError: "",
       });
     } catch (error) {
       this.setState({
         loadingData: false,
-        loadError: error.message || "Could not load backend classes and units.",
+        loadError:
+          error.message || "Could not load backend classes, units, and notes.",
       });
     }
   };
@@ -626,10 +658,7 @@ export default class Welcome extends Component {
     };
 
     try {
-      await apiFetch(API_URLS.classes, {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
+      await createClassBackend(payload);
 
       this.setState({
         showNewClassModal: false,
@@ -799,15 +828,7 @@ export default class Welcome extends Component {
 
         formData.append("file", files[0].fileObject);
 
-        await apiFetch(
-          `${API_URLS.notes}?unitId=${encodeURIComponent(
-            unitId,
-          )}&title=${encodeURIComponent(title.trim())}`,
-          {
-            method: "POST",
-            body: formData,
-          },
-        );
+        await createFileNoteBackend(unitId, title.trim(), files[0].fileObject);
       } else {
         const payload = {
           content: content.trim() || "No content added yet.",
@@ -815,10 +836,7 @@ export default class Welcome extends Component {
           title: title.trim(),
         };
 
-        await apiFetch(API_URLS.textEntryNotes, {
-          method: "POST",
-          body: JSON.stringify(payload),
-        });
+        await createTextNoteBackend(payload);
       }
 
       this.setState({
@@ -2655,13 +2673,18 @@ export default class Welcome extends Component {
               <p className="welcome-text">Welcome back,</p>
               <h1>{this.state.username}</h1>
             </div>
+            <div className="header-actions">
+              <button className="secondary-button" onClick={this.toggleTheme}>
+                {this.state.theme === "light" ? "Dark Mode" : "Light Mode"}
+              </button>
 
-            <button
-              className="new-note-button"
-              onClick={() => this.openNewNoteModal()}
-            >
-              + New Note
-            </button>
+              <button
+                className="new-note-button"
+                onClick={() => this.openNewNoteModal()}
+              >
+                + New Note
+              </button>
+            </div>
           </header>
 
           {this.renderCurrentSection()}

@@ -1643,3 +1643,40 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+/* ---------- Dark/Light mode ---------- */
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+body.light {
+  --bg: #ffffff;
+  --text: #1a1a1a;
+  --card: #f5f5f5;
+}
+
+body.dark {
+  --background: #121212;
+  --card: #1e1e1e;
+
+  --text: #e5e5e5;
+  --muted: #9aa4b2;
+
+  --border: #2a3442;
+
+  --sidebar: #0f172a;
+  --sidebar-dark: #020617;
+
+  --primary: #3b82f6;
+  --primary-dark: #2563eb;
+  --accent: #38bdf8;
+}
+
+body.dark .overview-card,
+body.dark .course-card,
+body.dark .note-card {
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+}
