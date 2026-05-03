@@ -14,7 +14,6 @@ function App() {
         <Route exact path="/" render={() => <Redirect to="/welcome" />} />
         <Route path="/signup" component={SignUp} />
         <Route path="/signin" component={Login} />
-        <Route path="/forgotpassword" component={ForgotPassword} />
         <Route path="/welcome" component={Welcome} />
         <Route render={() => <Redirect to="/welcome" />} />
       </Switch>

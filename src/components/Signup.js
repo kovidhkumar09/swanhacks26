@@ -1,5 +1,6 @@
 import React, { Component } from "react";
 import { Link } from "react-router-dom";
+import { registerUser, saveAuthSession } from "../services/api";
 
 export default class SignUp extends Component {
   constructor(props) {
@@ -8,11 +9,12 @@ export default class SignUp extends Component {
     this.state = {
       username: "",
       password: "",
+      loading: false,
       error: "",
     };
   }
 
-  handleSubmit = (e) => {
+  handleSubmit = async (e) => {
     e.preventDefault();
 
     const username = this.state.username.trim();
@@ -25,14 +27,25 @@ export default class SignUp extends Component {
       return;
     }
 
-    const userDetails = {
-      id: 2,
-      username: username,
-    };
+    this.setState({
+      loading: true,
+      error: "",
+    });
 
-    sessionStorage.setItem("userDetails", JSON.stringify(userDetails));
+    try {
+      const response = await registerUser(username, password);
 
-    this.props.history.push("/welcome");
+      saveAuthSession(response, {
+        username,
+      });
+
+      this.props.history.push("/welcome");
+    } catch (error) {
+      this.setState({
+        loading: false,
+        error: error.message || "Signup failed. Please try again.",
+      });
+    }
   };
 
   render() {
@@ -68,8 +81,12 @@ export default class SignUp extends Component {
           />
 
           <div className="d-grid my-2">
-            <button type="submit" className="btn btn-primary btn-block mb-3">
-              Sign Up
+            <button
+              type="submit"
+              className="btn btn-primary btn-block mb-3"
+              disabled={this.state.loading}
+            >
+              {this.state.loading ? "Creating Account..." : "Sign Up"}
             </button>
           </div>
 

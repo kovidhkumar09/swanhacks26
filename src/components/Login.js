@@ -1,5 +1,6 @@
 import React, { Component } from "react";
 import { Link } from "react-router-dom";
+import { loginUser, saveAuthSession } from "../services/api";
 
 export default class Login extends Component {
   constructor(props) {
@@ -8,11 +9,12 @@ export default class Login extends Component {
     this.state = {
       username: "",
       password: "",
+      loading: false,
       error: "",
     };
   }
 
-  handleSubmit = (e) => {
+  handleSubmit = async (e) => {
     e.preventDefault();
 
     const username = this.state.username.trim();
@@ -25,14 +27,25 @@ export default class Login extends Component {
       return;
     }
 
-    const userDetails = {
-      id: 2,
-      username: username,
-    };
+    this.setState({
+      loading: true,
+      error: "",
+    });
 
-    sessionStorage.setItem("userDetails", JSON.stringify(userDetails));
+    try {
+      const response = await loginUser(username, password);
 
-    this.props.history.push("/welcome");
+      saveAuthSession(response, {
+        username,
+      });
+
+      this.props.history.push("/welcome");
+    } catch (error) {
+      this.setState({
+        loading: false,
+        error: error.message || "Login failed. Please check your credentials.",
+      });
+    }
   };
 
   render() {
@@ -82,15 +95,17 @@ export default class Login extends Component {
           </div>
 
           <div className="d-grid my-2">
-            <button type="submit" className="btn btn-primary btn-block mb-3">
-              Login
+            <button
+              type="submit"
+              className="btn btn-primary btn-block mb-3"
+              disabled={this.state.loading}
+            >
+              {this.state.loading ? "Logging in..." : "Login"}
             </button>
           </div>
 
           <div className="forgot-password form-inline">
-            <span className="me-2 pe-4">
-              Forgot <Link to="/forgotpassword">password?</Link>
-            </span>
+
             New user? <Link to="/signup">Signup</Link>
           </div>
         </form>

@@ -2,6 +2,8 @@ import React, { Component } from "react";
 import { Link, Redirect } from "react-router-dom";
 import "../index.css";
 import {
+  API_URLS,
+  apiFetch,
   getStoredUsername,
   addVideoComment,
   updateVideoComment,
@@ -42,21 +44,21 @@ const MOCK_CLASSES = [
     id: 1,
     code: "TEST101",
     name: "Testing",
-    professor: "Mock Professor",
+    professor: "Professor",
     year: "2026",
   },
   {
     id: 2,
     code: "COMS309",
     name: "Software Development",
-    professor: "Staff",
+    professor: "Professor",
     year: "2026",
   },
   {
     id: 3,
     code: "DB101",
     name: "Database Systems",
-    professor: "Staff",
+    professor: "Professor",
     year: "2026",
   },
 ];
@@ -65,14 +67,13 @@ const MOCK_UNITS = [
   {
     id: 1,
     myClass: MOCK_CLASSES[0],
-    name: "UnitFirst",
+    name: "Unit 1",
     notes: [
       {
         id: 101,
         title: "Image Note Example",
-        content:
-          "This note has an image attachment. Use this to test opening a note, viewing an image, and downloading the file.",
-        tags: ["image", "mock", "test"],
+        content: "This note has an image attachment.",
+        tags: ["image", "test"],
         date: "2026-05-02",
         files: [
           {
@@ -99,9 +100,8 @@ const MOCK_UNITS = [
       {
         id: 102,
         title: "PDF Note Example",
-        content:
-          "This note has a PDF attachment. Put a file named sample.pdf inside public/mock-files/ to test the PDF viewer.",
-        tags: ["pdf", "mock", "test"],
+        content: "This note has a PDF attachment.",
+        tags: ["pdf", "test"],
         date: "2026-05-02",
         files: [
           {
@@ -130,13 +130,12 @@ const MOCK_UNITS = [
   {
     id: 2,
     myClass: MOCK_CLASSES[0],
-    name: "UnitSecond",
+    name: "Unit 2",
     notes: [
       {
         id: 103,
         title: "Video Note Example",
-        content:
-          "This note has a video attachment. Put a file named sample-video.mp4 inside public/mock-files/ to test the video player and timestamp comments.",
+        content: "This note has a video attachment.",
         tags: ["video", "mock", "test"],
         date: "2026-05-02",
         files: [
@@ -187,7 +186,7 @@ const MOCK_UNITS = [
     notes: [
       {
         id: 104,
-        title: "Sprint 1 Planning Notes",
+        title: "Sprint Planning Notes",
         content:
           "Tasks:\n- Build class dashboard\n- Add note popup\n- Test file previews\n- Prepare demo video",
         tags: ["project", "sprint"],
@@ -419,19 +418,63 @@ export default class Welcome extends Component {
     return normalizedUnit;
   };
 
-  loadClassesAndUnits = () => {
+  loadClassesAndUnits = async () => {
     this.setState({ loadingData: true, loadError: "" });
 
     try {
-      const classes = MOCK_CLASSES.map(this.normalizeCourse);
+      const classesData = await apiFetch(API_URLS.classes, {
+        method: "GET",
+      });
+
+      const unitsData = await apiFetch(API_URLS.units, {
+        method: "GET",
+      });
+
+      /*
+      NOTE:
+      Your Swagger shows GET /app/v1/notes using className and unitName.
+      If your backend requires those values, we may need to fetch notes per unit instead.
+      This generic call may need adjustment depending on how your backend handles GET /notes.
+    */
+      let notesData = [];
+
+      try {
+        notesData = await apiFetch(API_URLS.notes, {
+          method: "GET",
+        });
+      } catch (error) {
+        console.log("Could not load notes directly:", error.message);
+        notesData = [];
+      }
+
+      const classes = this.toArray(classesData?.data || classesData).map(
+        this.normalizeCourse,
+      );
+
+      const rawUnits = this.toArray(unitsData?.data || unitsData);
+      const rawNotes = this.toArray(notesData?.data || notesData);
+
       const unitsByClassId = {};
 
       classes.forEach((course) => {
         unitsByClassId[String(course.id)] = [];
       });
 
-      MOCK_UNITS.forEach((rawUnit) => {
+      rawUnits.forEach((rawUnit) => {
         const unit = this.normalizeUnit(rawUnit);
+
+        unit.notes = rawNotes
+          .filter((note) => {
+            const noteUnitId =
+              note.unitId ||
+              note.unit?.id ||
+              note.myUnit?.id ||
+              note.unit?.unitId;
+
+            return String(noteUnitId) === String(unit.id);
+          })
+          .map((note) => this.normalizeNote(note, unit));
+
         const key = String(unit.classId);
 
         if (!unitsByClassId[key]) {
@@ -457,7 +500,7 @@ export default class Welcome extends Component {
     } catch (error) {
       this.setState({
         loadingData: false,
-        loadError: "Could not load mock classes and units.",
+        loadError: error.message || "Could not load backend classes and units.",
       });
     }
   };
@@ -563,7 +606,7 @@ export default class Welcome extends Component {
     }));
   };
 
-  createClass = (e) => {
+  createClass = async (e) => {
     e.preventDefault();
 
     const { code, name, professor, year } = this.state.newClass;
@@ -573,33 +616,37 @@ export default class Welcome extends Component {
       return;
     }
 
-    const savedClass = this.normalizeCourse({
-      id: Date.now(),
-      code: code.trim(),
-      name: name.trim(),
-      professor: professor.trim() || null,
-      year: year.trim() || null,
-    });
+    this.setState({ savingClass: true });
 
-    this.setState((prevState) => ({
-      classes: [...prevState.classes, savedClass],
-      unitsByClassId: {
-        ...prevState.unitsByClassId,
-        [String(savedClass.id)]: [],
-      },
-      selectedClassId: String(savedClass.id),
-      selectedClassPageId: String(savedClass.id),
-      selectedUnitId: "",
-      activeSection: "classDetail",
-      showNewClassModal: false,
-      savingClass: false,
-      newClass: {
-        code: "",
-        name: "",
-        professor: "",
-        year: "",
-      },
-    }));
+    const payload = {
+      name: name.trim(),
+      code: code.trim(),
+      professor: professor.trim() || "",
+      year: year ? Number(year) : new Date().getFullYear(),
+    };
+
+    try {
+      await apiFetch(API_URLS.classes, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+
+      this.setState({
+        showNewClassModal: false,
+        savingClass: false,
+        newClass: {
+          code: "",
+          name: "",
+          professor: "",
+          year: "",
+        },
+      });
+
+      this.loadClassesAndUnits();
+    } catch (error) {
+      this.setState({ savingClass: false });
+      alert(error.message || "Could not create class.");
+    }
   };
 
   openNewNoteModal = (classId = null, unitId = null) => {
@@ -729,7 +776,7 @@ export default class Welcome extends Component {
     });
   };
 
-  createNote = (e) => {
+  createNote = async (e) => {
     e.preventDefault();
 
     const { title, content, tags, classId, unitId, files } = this.state.newNote;
@@ -744,28 +791,56 @@ export default class Welcome extends Component {
       return;
     }
 
-    const selectedUnit = this.getUnitsForClass(classId).find(
-      (unit) => String(unit.id) === String(unitId),
-    );
+    this.setState({ savingNote: true });
 
-    const savedNote = this.normalizeNote(
-      {
-        id: Date.now(),
-        title: title.trim(),
-        content: content.trim() || "No content added yet.",
-        tags,
-        files: files.map((file) => ({
-          ...file,
-          fileObject: null,
-        })),
-        date: new Date().toISOString(),
-        unitId,
-        classId,
-      },
-      selectedUnit,
-    );
+    try {
+      if (files.length > 0 && files[0].fileObject) {
+        const formData = new FormData();
 
-    this.addNoteToLocalState(savedNote, classId, unitId);
+        formData.append("file", files[0].fileObject);
+
+        await apiFetch(
+          `${API_URLS.notes}?unitId=${encodeURIComponent(
+            unitId,
+          )}&title=${encodeURIComponent(title.trim())}`,
+          {
+            method: "POST",
+            body: formData,
+          },
+        );
+      } else {
+        const payload = {
+          content: content.trim() || "No content added yet.",
+          unitId: Number(unitId),
+          title: title.trim(),
+        };
+
+        await apiFetch(API_URLS.textEntryNotes, {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
+      }
+
+      this.setState({
+        showNewNoteModal: false,
+        savingNote: false,
+        activeSection: "notes",
+        newNote: {
+          title: "",
+          content: "",
+          tags: [],
+          tagsInput: "",
+          classId: "",
+          unitId: "",
+          files: [],
+        },
+      });
+
+      this.loadClassesAndUnits();
+    } catch (error) {
+      this.setState({ savingNote: false });
+      alert(error.message || "Could not create note.");
+    }
   };
 
   openNotePopup = (note) => {
@@ -2528,7 +2603,7 @@ export default class Welcome extends Component {
         <aside className="sidebar">
           <div className="sidebar-logo">
             <div className="logo-icon">N</div>
-            <span>NoteSpace</span>
+            <span>UNote</span>
           </div>
 
           <nav className="sidebar-nav">
