@@ -17,7 +17,7 @@ export default class ForgotPassword extends Component {
 
                                     <div className="">
                                      <button type="button" className="btn btn-sm btn-primary me-2" >Reset Password</button>
-                                     <Link to="/" className="btn btn-sm btn-secondary" >Back</Link>
+                                     <Link to="/" className="btn btn-sm blue-button">Back</Link>
                                     </div>
                           
                                 </form>
