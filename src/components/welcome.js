@@ -1,20 +1,13 @@
 import React, { Component } from "react";
 import { Link, Redirect } from "react-router-dom";
 import "../index.css";
-import {
-  API_URLS,
-  apiFetch,
-  getStoredUsername,
-  addVideoComment,
-  updateVideoComment,
-  deleteVideoCommentById,
-  addPdfComment,
-  updatePdfComment,
-  deletePdfCommentById,
-  addGenericComment,
-  updateGenericComment,
-  deleteGenericCommentById,
-} from "../services/api";
+import { getStoredUsername } from "../services/api";
+
+import classesJson from "../mock-data/classes.json";
+import unitsJson from "../mock-data/units.json";
+import notesJson from "../mock-data/notes.json";
+import pdfCommentsJson from "../mock-data/pdf_comment.json";
+import videoTimestampsJson from "../mock-data/video_timestamp.json";
 
 const MOCK_IMAGE_SRC =
   "data:image/svg+xml;charset=UTF-8," +
@@ -316,21 +309,46 @@ export default class Welcome extends Component {
   };
 
   toArray = (data) => {
+    if (!data) return [];
+
     if (Array.isArray(data)) return data;
-    if (data && Array.isArray(data.content)) return data.content;
-    if (data && Array.isArray(data.data)) return data.data;
-    if (data) return [data];
+
+    const possibleArrays = [
+      data.data,
+      data.body,
+      data.result,
+      data.results,
+      data.response,
+      data.payload,
+      data.content,
+      data.items,
+      data.classes,
+      data.units,
+      data.notes,
+    ];
+
+    for (const item of possibleArrays) {
+      if (Array.isArray(item)) return item;
+    }
+
+    for (const item of possibleArrays) {
+      if (item && typeof item === "object") {
+        const nested = this.toArray(item);
+        if (nested.length > 0) return nested;
+      }
+    }
+
     return [];
   };
 
   normalizeCourse = (course) => {
     return {
-      id: course.id,
+      id: course.id || "",
       code: course.code || "",
-      name: course.name || "Untitled Class",
-      professor: course.professor || "No professor listed",
+      name: course.name || "",
+      professor: course.professor || "",
       year: course.year || "",
-      user: course.user || null,
+      user: course.user || course.user_id || null,
     };
   };
 
@@ -364,97 +382,61 @@ export default class Welcome extends Component {
   };
 
   normalizeNote = (note, fallbackUnit = null) => {
-    const rawFiles =
-      note.files || note.attachments || note.images || note.documents || [];
+    const fileType = note.file_type || "";
+    const hasFile = Boolean(note.file_url);
 
-    const unitId =
-      note.unitId ||
-      (note.unit && note.unit.id) ||
-      (note.myUnit && note.myUnit.id) ||
-      (fallbackUnit && fallbackUnit.id) ||
-      "";
-
-    const classId =
-      note.classId ||
-      (note.myClass && note.myClass.id) ||
-      (note.unit && note.unit.myClass && note.unit.myClass.id) ||
-      (note.myUnit && note.myUnit.myClass && note.myUnit.myClass.id) ||
-      (fallbackUnit && fallbackUnit.classId) ||
-      "";
+    const files = hasFile
+      ? [
+          {
+            id: `file-${note.id}`,
+            note_id: note.id,
+            name: note.file_name || note.title || "Attached file",
+            type: fileType,
+            size: note.file_size || null,
+            src: note.file_url,
+            fileObject: null,
+            comments: this.getCommentsForNote(note.id, fileType),
+          },
+        ]
+      : [];
 
     return {
-      id: note.id || `${Date.now()}-${Math.random()}`,
-      title: note.title || note.name || "Untitled Note",
-      content:
-        note.content || note.body || note.text || "No content added yet.",
-      tags: note.tags || [],
-      date: this.formatDate(note.createdAt || note.updatedAt || note.date),
-      unitId: String(unitId),
-      classId: String(classId),
-      unitName:
-        note.unitName ||
-        (note.unit && note.unit.name) ||
-        (note.myUnit && note.myUnit.name) ||
-        (fallbackUnit && fallbackUnit.name) ||
-        "Unit",
-      className:
-        note.className ||
-        (note.myClass && note.myClass.name) ||
-        (fallbackUnit && fallbackUnit.className) ||
-        "",
-      classCode:
-        note.classCode ||
-        (note.myClass && note.myClass.code) ||
-        (fallbackUnit && fallbackUnit.classCode) ||
-        "",
-      files: this.toArray(rawFiles).map(this.normalizeFile),
+      id: note.id || "",
+      title: note.title || "",
+      content: note.content || "File note",
+      tags: [],
+      date: this.formatDate(note.created_at || note.createdAt || note.date),
+      unitId: String(note.unit_id || note.unitId || ""),
+      classId: fallbackUnit ? String(fallbackUnit.classId) : "",
+      unitName: fallbackUnit ? fallbackUnit.name : "Unit",
+      className: fallbackUnit ? fallbackUnit.className : "",
+      classCode: fallbackUnit ? fallbackUnit.classCode : "",
+      files,
     };
   };
 
   normalizeUnit = (unit) => {
-    const myClass = unit.myClass || unit.class || unit.course || {};
-
-    const normalizedUnit = {
-      id: unit.id,
-      name: unit.name || "Untitled Unit",
-      classId: String(
-        unit.classId || unit.courseId || unit.myClassId || myClass.id || "",
-      ),
-      className: myClass.name || "",
-      classCode: myClass.code || "",
+    return {
+      id: unit.id || "",
+      name: unit.name || "",
+      classId: String(unit.class_id || unit.classId || ""),
+      className: "",
+      classCode: "",
       notes: [],
     };
-
-    normalizedUnit.notes = this.toArray(unit.notes).map((note) =>
-      this.normalizeNote(note, normalizedUnit),
-    );
-
-    return normalizedUnit;
   };
 
-  loadClassesAndUnits = async () => {
+  loadClassesAndUnits = () => {
     this.setState({ loadingData: true, loadError: "" });
 
     try {
-      const [classesData, unitsData, notesData] = await Promise.all([
-        apiFetch(API_URLS.classesAll, {
-          method: "GET",
-        }),
-        apiFetch(API_URLS.unitsAll, {
-          method: "GET",
-        }),
-        apiFetch(API_URLS.notesAll, {
-          method: "GET",
-        }),
-      ]);
-
-      const rawClasses = this.toArray(classesData?.data || classesData);
-      const rawUnits = this.toArray(unitsData?.data || unitsData);
-      const rawNotes = this.toArray(notesData?.data || notesData);
-
-      const classes = rawClasses
+      const classes = classesJson
         .map(this.normalizeCourse)
-        .filter((course) => course.id || course.name);
+        .filter((course) => course.id && course.name);
+
+      const units = unitsJson
+        .map(this.normalizeUnit)
+        .filter((unit) => unit.id && unit.name && unit.classId);
 
       const unitsByClassId = {};
 
@@ -462,56 +444,27 @@ export default class Welcome extends Component {
         unitsByClassId[String(course.id)] = [];
       });
 
-      rawUnits.forEach((rawUnit) => {
-        const myClass =
-          rawUnit.myClass ||
-          rawUnit.class ||
-          rawUnit.course ||
-          rawUnit.classes ||
-          {};
+      units.forEach((unit) => {
+        const matchedClass = classes.find(
+          (course) => String(course.id) === String(unit.classId),
+        );
 
-        const classId =
-          rawUnit.classId ||
-          rawUnit.myClassId ||
-          rawUnit.courseId ||
-          myClass.id ||
-          "";
+        const unitWithClass = {
+          ...unit,
+          className: matchedClass ? matchedClass.name : "",
+          classCode: matchedClass ? matchedClass.code : "",
+        };
 
-        const unit = this.normalizeUnit({
-          ...rawUnit,
-          myClass,
-          classId,
-        });
+        unitWithClass.notes = notesJson
+          .filter((note) => String(note.unit_id) === String(unit.id))
+          .map((note) => this.normalizeNote(note, unitWithClass))
+          .filter((note) => note.id && note.title);
 
-        const unitNotes = rawNotes
-          .filter((note) => {
-            const noteUnit =
-              note.unit ||
-              note.myUnit ||
-              note.unitDTO ||
-              note.unitResponse ||
-              {};
-
-            const noteUnitId =
-              note.unitId ||
-              note.myUnitId ||
-              noteUnit.id ||
-              noteUnit.unitId ||
-              "";
-
-            return String(noteUnitId) === String(unit.id);
-          })
-          .map((note) => this.normalizeNote(note, unit));
-
-        unit.notes = unitNotes;
-
-        const key = String(unit.classId);
-
-        if (!unitsByClassId[key]) {
-          unitsByClassId[key] = [];
+        if (!unitsByClassId[String(unit.classId)]) {
+          unitsByClassId[String(unit.classId)] = [];
         }
 
-        unitsByClassId[key].push(unit);
+        unitsByClassId[String(unit.classId)].push(unitWithClass);
       });
 
       const selectedClassId = classes[0] ? String(classes[0].id) : "";
@@ -531,8 +484,7 @@ export default class Welcome extends Component {
     } catch (error) {
       this.setState({
         loadingData: false,
-        loadError:
-          error.message || "Could not load backend classes, units, and notes.",
+        loadError: "Could not load local JSON data.",
       });
     }
   };
@@ -559,6 +511,30 @@ export default class Welcome extends Component {
     return Object.values(this.state.unitsByClassId)
       .flat()
       .flatMap((unit) => unit.notes || []);
+  };
+
+  getCommentsForNote = (noteId, fileType) => {
+    const type = String(fileType || "").toLowerCase();
+
+    if (type.includes("pdf")) {
+      return pdfCommentsJson
+        .filter((comment) => String(comment.note_id) === String(noteId))
+        .map((comment) => ({
+          id: comment.comment_id || comment.id,
+          ...comment,
+        }));
+    }
+
+    if (type.startsWith("video/")) {
+      return videoTimestampsJson
+        .filter((comment) => String(comment.note_id) === String(noteId))
+        .map((comment) => ({
+          id: comment.comment_id || comment.id,
+          ...comment,
+        }));
+    }
+
+    return [];
   };
 
   logOut = (e) => {
@@ -638,7 +614,7 @@ export default class Welcome extends Component {
     }));
   };
 
-  createClass = async (e) => {
+  createClass = (e) => {
     e.preventDefault();
 
     const { code, name, professor, year } = this.state.newClass;
@@ -648,34 +624,33 @@ export default class Welcome extends Component {
       return;
     }
 
-    this.setState({ savingClass: true });
-
-    const payload = {
-      name: name.trim(),
+    const savedClass = this.normalizeCourse({
+      id: Date.now(),
       code: code.trim(),
-      professor: professor.trim() || "",
-      year: year ? Number(year) : new Date().getFullYear(),
-    };
+      name: name.trim(),
+      professor: professor.trim(),
+      year: year.trim(),
+    });
 
-    try {
-      await createClassBackend(payload);
-
-      this.setState({
-        showNewClassModal: false,
-        savingClass: false,
-        newClass: {
-          code: "",
-          name: "",
-          professor: "",
-          year: "",
-        },
-      });
-
-      this.loadClassesAndUnits();
-    } catch (error) {
-      this.setState({ savingClass: false });
-      alert(error.message || "Could not create class.");
-    }
+    this.setState((prevState) => ({
+      classes: [...prevState.classes, savedClass],
+      unitsByClassId: {
+        ...prevState.unitsByClassId,
+        [String(savedClass.id)]: [],
+      },
+      selectedClassId: String(savedClass.id),
+      selectedClassPageId: String(savedClass.id),
+      selectedUnitId: "",
+      activeSection: "classDetail",
+      showNewClassModal: false,
+      savingClass: false,
+      newClass: {
+        code: "",
+        name: "",
+        professor: "",
+        year: "",
+      },
+    }));
   };
 
   openNewNoteModal = (classId = null, unitId = null) => {
@@ -805,7 +780,7 @@ export default class Welcome extends Component {
     });
   };
 
-  createNote = async (e) => {
+  createNote = (e) => {
     e.preventDefault();
 
     const { title, content, tags, classId, unitId, files } = this.state.newNote;
@@ -820,45 +795,37 @@ export default class Welcome extends Component {
       return;
     }
 
-    this.setState({ savingNote: true });
+    const selectedUnit = this.getUnitsForClass(classId).find(
+      (unit) => String(unit.id) === String(unitId),
+    );
 
-    try {
-      if (files.length > 0 && files[0].fileObject) {
-        const formData = new FormData();
+    const savedNote = this.normalizeNote(
+      {
+        id: Date.now(),
+        title: title.trim(),
+        content: content.trim() || "No content added yet.",
+        created_at: new Date().toISOString(),
+        unit_id: unitId,
+        file_url: files[0]?.src || "",
+        file_name: files[0]?.name || "",
+        file_type: files[0]?.type || "",
+        file_size: files[0]?.size || null,
+      },
+      selectedUnit,
+    );
 
-        formData.append("file", files[0].fileObject);
-
-        await createFileNoteBackend(unitId, title.trim(), files[0].fileObject);
-      } else {
-        const payload = {
-          content: content.trim() || "No content added yet.",
-          unitId: Number(unitId),
-          title: title.trim(),
-        };
-
-        await createTextNoteBackend(payload);
-      }
-
-      this.setState({
-        showNewNoteModal: false,
-        savingNote: false,
-        activeSection: "notes",
-        newNote: {
-          title: "",
-          content: "",
-          tags: [],
-          tagsInput: "",
-          classId: "",
-          unitId: "",
-          files: [],
-        },
-      });
-
-      this.loadClassesAndUnits();
-    } catch (error) {
-      this.setState({ savingNote: false });
-      alert(error.message || "Could not create note.");
+    if (files.length > 0) {
+      savedNote.files = files.map((file) => ({
+        ...file,
+        note_id: savedNote.id,
+        fileObject: null,
+        comments: [],
+      }));
     }
+
+    savedNote.tags = tags;
+
+    this.addNoteToLocalState(savedNote, classId, unitId);
   };
 
   openNotePopup = (note) => {
@@ -999,7 +966,7 @@ export default class Welcome extends Component {
     });
   };
 
-  deleteVideoComment = async (comment) => {
+  deleteVideoComment = (comment) => {
     const { selectedFile } = this.state;
 
     if (!selectedFile) {
@@ -1007,24 +974,6 @@ export default class Welcome extends Component {
     }
 
     const commentId = comment.comment_id || comment.id;
-
-    const payload = {
-      note_id: selectedFile.noteId,
-      comment_id: commentId,
-      timestamp: Number(comment.timestamp),
-      username: getStoredUsername(),
-    };
-
-    console.log("Delete video comment backend payload:", payload);
-
-    try {
-      await deleteVideoCommentById(selectedFile.noteId, commentId);
-    } catch (error) {
-      console.log(
-        "Video delete backend unavailable, deleting locally:",
-        error.message,
-      );
-    }
 
     this.setState((prevState) => ({
       videoComments: {
@@ -1036,7 +985,7 @@ export default class Welcome extends Component {
     }));
   };
 
-  submitVideoComment = async (e) => {
+  submitVideoComment = (e) => {
     e.preventDefault();
 
     const {
@@ -1053,26 +1002,13 @@ export default class Welcome extends Component {
     const commentId = editingVideoCommentId || Date.now();
 
     const payload = {
+      id: commentId,
+      comment_id: commentId,
       note_id: selectedFile.noteId,
       comment: newVideoComment.trim(),
       timestamp: Number(videoCurrentTime.toFixed(2)),
       username: getStoredUsername(),
     };
-
-    console.log("Video comment backend payload:", payload);
-
-    try {
-      if (editingVideoCommentId) {
-        await updateVideoComment(selectedFile.noteId, commentId, payload);
-      } else {
-        await addVideoComment(selectedFile.noteId, payload);
-      }
-    } catch (error) {
-      console.log(
-        "Video comment backend unavailable, saving locally:",
-        error.message,
-      );
-    }
 
     this.setState((prevState) => {
       const existingComments = prevState.videoComments[selectedFile.id] || [];
@@ -1080,22 +1016,10 @@ export default class Welcome extends Component {
       const updatedComments = editingVideoCommentId
         ? existingComments.map((item) =>
             (item.comment_id || item.id) === editingVideoCommentId
-              ? {
-                  ...item,
-                  ...payload,
-                  id: item.id,
-                  comment_id: commentId,
-                }
+              ? { ...item, ...payload }
               : item,
           )
-        : [
-            ...existingComments,
-            {
-              id: commentId,
-              comment_id: commentId,
-              ...payload,
-            },
-          ];
+        : [...existingComments, payload];
 
       return {
         videoComments: {
@@ -1209,7 +1133,7 @@ export default class Welcome extends Component {
     });
   };
 
-  savePdfComment = async (e) => {
+  savePdfComment = (e) => {
     e.preventDefault();
 
     const {
@@ -1238,6 +1162,8 @@ export default class Welcome extends Component {
     const region = editingPdfCommentId ? existingComment : pdfSelectionRect;
 
     const payload = {
+      id: commentId,
+      comment_id: commentId,
       note_id: selectedFile.noteId,
       comment: pdfDraftComment.trim(),
       x: Number(region.x.toFixed(2)),
@@ -1248,38 +1174,16 @@ export default class Welcome extends Component {
       username: getStoredUsername(),
     };
 
-    console.log("PDF comment backend payload:", payload);
-
-    try {
-      if (editingPdfCommentId) {
-        await updatePdfComment(selectedFile.noteId, commentId, payload);
-      } else {
-        await addPdfComment(selectedFile.noteId, payload);
-      }
-    } catch (error) {
-      console.log(
-        "PDF comment backend unavailable, saving locally:",
-        error.message,
-      );
-    }
-
     this.setState((prevState) => {
       const existingComments = prevState.pdfComments[selectedFile.id] || [];
 
       const updatedComments = editingPdfCommentId
         ? existingComments.map((item) =>
             (item.comment_id || item.id) === editingPdfCommentId
-              ? { ...item, ...payload, id: item.id }
+              ? { ...item, ...payload }
               : item,
           )
-        : [
-            ...existingComments,
-            {
-              id: commentId,
-              comment_id: commentId,
-              ...payload,
-            },
-          ];
+        : [...existingComments, payload];
 
       return {
         pdfComments: {
@@ -1308,7 +1212,7 @@ export default class Welcome extends Component {
     });
   };
 
-  deletePdfComment = async (comment) => {
+  deletePdfComment = (comment) => {
     const { selectedFile } = this.state;
 
     if (!selectedFile) {
@@ -1316,24 +1220,6 @@ export default class Welcome extends Component {
     }
 
     const commentId = comment.comment_id || comment.id;
-
-    const payload = {
-      note_id: selectedFile.noteId,
-      comment_id: commentId,
-      page_number: comment.page_number,
-      username: getStoredUsername(),
-    };
-
-    console.log("Delete PDF comment backend payload:", payload);
-
-    try {
-      await deletePdfCommentById(selectedFile.noteId, commentId);
-    } catch (error) {
-      console.log(
-        "PDF delete backend unavailable, deleting locally:",
-        error.message,
-      );
-    }
 
     this.setState((prevState) => ({
       pdfComments: {
