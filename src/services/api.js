@@ -1,6 +1,6 @@
 const BACKEND_ROOT =
   process.env.REACT_APP_BACKEND_ROOT ||
-  "http://unote-backend-production.up.railway.app";
+  "https://unote-backend-production.up.railway.app";
 
 const API_BASE_URL = `${BACKEND_ROOT}/api`;
 const APP_V1_BASE_URL = `${BACKEND_ROOT}/app/v1`;
@@ -21,9 +21,7 @@ export const API_URLS = {
   textEntryNotes: `${APP_V1_BASE_URL}/notes/textentry`,
   links: `${APP_V1_BASE_URL}/links`,
 
-  // Video timestamp comments - based on the URLs you gave earlier.
-  addVideoComment: (noteId) =>
-    `${API_BASE_URL}/notes/${noteId}/timestamps/add`,
+  addVideoComment: (noteId) => `${API_BASE_URL}/notes/${noteId}/timestamps/add`,
   getVideoComments: (noteId) =>
     `${API_BASE_URL}/notes/${noteId}/timestamps/get/all`,
   updateVideoComment: (noteId, commentId) =>
@@ -31,9 +29,7 @@ export const API_URLS = {
   deleteVideoComment: (noteId, commentId) =>
     `${API_BASE_URL}/notes/${noteId}/timestamps/${commentId}/delete`,
 
-  // PDF comments - confirm these paths with backend if different.
-  addPdfComment: (noteId) =>
-    `${API_BASE_URL}/notes/${noteId}/pdf-comments/add`,
+  addPdfComment: (noteId) => `${API_BASE_URL}/notes/${noteId}/pdf-comments/add`,
   getPdfComments: (noteId) =>
     `${API_BASE_URL}/notes/${noteId}/pdf-comments/get/all`,
   updatePdfComment: (noteId, commentId) =>
@@ -41,9 +37,7 @@ export const API_URLS = {
   deletePdfComment: (noteId, commentId) =>
     `${API_BASE_URL}/notes/${noteId}/pdf-comments/${commentId}/delete`,
 
-  // Generic comments for images/text/other files - confirm these paths with backend if different.
-  addGenericComment: (noteId) =>
-    `${API_BASE_URL}/notes/${noteId}/comments/add`,
+  addGenericComment: (noteId) => `${API_BASE_URL}/notes/${noteId}/comments/add`,
   getGenericComments: (noteId) =>
     `${API_BASE_URL}/notes/${noteId}/comments/get/all`,
   updateGenericComment: (noteId, commentId) =>
@@ -116,10 +110,7 @@ export function saveAuthSession(response, fallbackUser = {}) {
       2,
 
     username:
-      account.username ||
-      account.name ||
-      fallbackUser.username ||
-      "Student",
+      account.username || account.name || fallbackUser.username || "Student",
   };
 
   sessionStorage.setItem("userDetails", JSON.stringify(userDetails));
@@ -238,8 +229,6 @@ export function deleteVideoCommentById(noteId, commentId) {
   });
 }
 
-/* ---------- PDF Comment API ---------- */
-
 export function addPdfComment(noteId, payload) {
   return apiFetch(API_URLS.addPdfComment(noteId), {
     method: "POST",
@@ -265,8 +254,6 @@ export function deletePdfCommentById(noteId, commentId) {
     method: "DELETE",
   });
 }
-
-/* ---------- Generic File Comment API ---------- */
 
 export function addGenericComment(noteId, payload) {
   return apiFetch(API_URLS.addGenericComment(noteId), {
