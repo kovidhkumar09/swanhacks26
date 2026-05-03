@@ -1,6 +1,5 @@
 import React, { Component } from "react";
 import { Link } from "react-router-dom";
-import { registerUser, saveAuthSession } from "../services/api";
 
 export default class SignUp extends Component {
   constructor(props) {
@@ -9,47 +8,31 @@ export default class SignUp extends Component {
     this.state = {
       username: "",
       password: "",
-      loading: false,
       error: "",
     };
   }
 
-  handleSubmit = async (e) => {
+  handleSubmit = (e) => {
     e.preventDefault();
 
-    this.setState({
-      loading: true,
-      error: "",
-    });
+    const username = this.state.username.trim();
+    const password = this.state.password.trim();
 
-    try {
-      const response = await registerUser(
-        this.state.username,
-        this.state.password
-      );
-
-      const token =
-        response?.token ||
-        response?.jwt ||
-        response?.accessToken ||
-        response?.bearerToken;
-
-      if (token) {
-        saveAuthSession(response, {
-          username: this.state.username,
-        });
-
-        this.props.history.push("/welcome");
-      } else {
-        alert("Account created successfully. Please log in.");
-        this.props.history.push("/signin");
-      }
-    } catch (error) {
+    if (!username || !password) {
       this.setState({
-        loading: false,
-        error: error.message || "Registration failed. Please try again.",
+        error: "Please enter both username and password.",
       });
+      return;
     }
+
+    const userDetails = {
+      id: 2,
+      username: username,
+    };
+
+    sessionStorage.setItem("userDetails", JSON.stringify(userDetails));
+
+    this.props.history.push("/welcome");
   };
 
   render() {
@@ -85,12 +68,8 @@ export default class SignUp extends Component {
           />
 
           <div className="d-grid my-2">
-            <button
-              type="submit"
-              className="btn btn-primary btn-block mb-3"
-              disabled={this.state.loading}
-            >
-              {this.state.loading ? "Creating Account..." : "Sign Up"}
+            <button type="submit" className="btn btn-primary btn-block mb-3">
+              Sign Up
             </button>
           </div>
 

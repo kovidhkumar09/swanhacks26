@@ -1,6 +1,5 @@
 import React, { Component } from "react";
 import { Link } from "react-router-dom";
-import { loginUser, saveAuthSession } from "../services/api";
 
 export default class Login extends Component {
   constructor(props) {
@@ -9,38 +8,31 @@ export default class Login extends Component {
     this.state = {
       username: "",
       password: "",
-      loading: false,
       error: "",
     };
   }
 
-  handleSubmit = async (e) => {
+  handleSubmit = (e) => {
     e.preventDefault();
 
-    this.setState({
-      loading: true,
-      error: "",
-    });
+    const username = this.state.username.trim();
+    const password = this.state.password.trim();
 
-    try {
-      const response = await loginUser(
-        this.state.username,
-        this.state.password
-      );
-
-      saveAuthSession(response, {
-        username: this.state.username,
-      });
-
-      this.props.history.push("/welcome");
-    } catch (error) {
+    if (!username || !password) {
       this.setState({
-        loading: false,
-        error:
-          error.message ||
-          "Login failed. Please check your username and password.",
+        error: "Please enter both username and password.",
       });
+      return;
     }
+
+    const userDetails = {
+      id: 2,
+      username: username,
+    };
+
+    sessionStorage.setItem("userDetails", JSON.stringify(userDetails));
+
+    this.props.history.push("/welcome");
   };
 
   render() {
@@ -90,12 +82,8 @@ export default class Login extends Component {
           </div>
 
           <div className="d-grid my-2">
-            <button
-              type="submit"
-              className="btn btn-primary btn-block mb-3"
-              disabled={this.state.loading}
-            >
-              {this.state.loading ? "Logging in..." : "Login"}
+            <button type="submit" className="btn btn-primary btn-block mb-3">
+              Login
             </button>
           </div>
 

@@ -1,26 +1,156 @@
 import React, { Component } from "react";
 import { Link, Redirect } from "react-router-dom";
-import {
-  API_BASE_URL,
-  apiFetch,
-  getAccount,
-  getStoredAccountId,
-  getStoredUserDetails,
-  saveAuthSession,
-  clearAuthSession,
-  updateAccount,
-  deleteAccount,
-} from "../services/api";
 import "../index.css";
 
 /*
-  These are assumed backend URLs based on your /api structure.
-  Change these only if your backend routes are named differently.
+  Backend URLs for classes/units/notes are intentionally NOT used right now.
+  Login and signup can still use the backend through api.js.
+
+  Later, when the backend endpoints are ready, reconnect:
+  GET  /api/classes
+  GET  /api/units
+  POST /api/notes
 */
-const CLASSES_API_URL = `${API_BASE_URL}/classes`;
-const UNITS_API_URL = `${API_BASE_URL}/units`;
-const NOTES_API_URL = `${API_BASE_URL}/notes`;
-const FILES_API_URL = `${API_BASE_URL}/files`;
+
+const MOCK_IMAGE_SRC =
+  "data:image/svg+xml;charset=UTF-8," +
+  encodeURIComponent(`
+    <svg xmlns="http://www.w3.org/2000/svg" width="900" height="520">
+      <defs>
+        <linearGradient id="g" x1="0" x2="1" y1="0" y2="1">
+          <stop offset="0%" stop-color="#2f7cf6"/>
+          <stop offset="100%" stop-color="#00b8ff"/>
+        </linearGradient>
+      </defs>
+      <rect width="900" height="520" rx="32" fill="url(#g)"/>
+      <rect x="70" y="70" width="760" height="380" rx="24" fill="white" opacity="0.9"/>
+      <text x="110" y="160" font-family="Arial" font-size="42" font-weight="700" fill="#25364f">
+        Sample Image Note
+      </text>
+      <text x="110" y="230" font-family="Arial" font-size="28" fill="#718096">
+        This is a mock image attachment.
+      </text>
+      <circle cx="700" cy="320" r="70" fill="#eef6ff"/>
+      <path d="M665 325 L695 355 L745 290" stroke="#2f7cf6" stroke-width="14" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  `);
+
+const MOCK_CLASSES = [
+  {
+    id: 1,
+    code: "TEST101",
+    name: "Testing",
+    professor: "Mock Professor",
+    year: "2026",
+  },
+  {
+    id: 2,
+    code: "COMS309",
+    name: "Software Development",
+    professor: "Staff",
+    year: "2026",
+  },
+  {
+    id: 3,
+    code: "DB101",
+    name: "Database Systems",
+    professor: "Staff",
+    year: "2026",
+  },
+];
+
+const MOCK_UNITS = [
+  {
+    id: 1,
+    myClass: MOCK_CLASSES[0],
+    name: "UnitFirst",
+    notes: [
+      {
+        id: 101,
+        title: "Image Note Example",
+        content:
+          "This note has an image attachment. Use this to test opening a note, viewing an image, and downloading the file.",
+        tags: ["image", "mock", "test"],
+        date: "2026-05-02",
+        files: [
+          {
+            id: "mock-image-1",
+            name: "mock-image-note.svg",
+            type: "image/svg+xml",
+            src: MOCK_IMAGE_SRC,
+          },
+        ],
+      },
+      {
+        id: 102,
+        title: "PDF Note Example",
+        content:
+          "This note has a PDF attachment. Put a file named sample.pdf inside public/mock-files/ to test the PDF viewer.",
+        tags: ["pdf", "mock", "test"],
+        date: "2026-05-02",
+        files: [
+          {
+            id: "mock-pdf-1",
+            name: "sample.pdf",
+            type: "application/pdf",
+            src: "/mock-files/sample.pdf",
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 2,
+    myClass: MOCK_CLASSES[0],
+    name: "UnitSecond",
+    notes: [
+      {
+        id: 103,
+        title: "Video Note Example",
+        content:
+          "This note has a video attachment. Put a file named sample-video.mp4 inside public/mock-files/ to test the video player.",
+        tags: ["video", "mock", "test"],
+        date: "2026-05-02",
+        files: [
+          {
+            id: "mock-video-1",
+            name: "sample-video.mp4",
+            type: "video/mp4",
+            src: "/mock-files/sample-video.mp4",
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 3,
+    myClass: MOCK_CLASSES[1],
+    name: "Sprint Planning",
+    notes: [
+      {
+        id: 104,
+        title: "Sprint 1 Planning Notes",
+        content:
+          "Tasks:\n- Build class dashboard\n- Add note popup\n- Test file previews\n- Prepare demo video",
+        tags: ["project", "sprint"],
+        date: "2026-05-02",
+        files: [],
+      },
+    ],
+  },
+  {
+    id: 4,
+    myClass: MOCK_CLASSES[1],
+    name: "Final Project",
+    notes: [],
+  },
+  {
+    id: 5,
+    myClass: MOCK_CLASSES[2],
+    name: "Transactions and Locking",
+    notes: [],
+  },
+];
 
 export default class Welcome extends Component {
   constructor(props) {
@@ -68,20 +198,18 @@ export default class Welcome extends Component {
       },
     };
   }
-
   componentDidMount() {
-    const storedUserDetails = getStoredUserDetails();
+  const storedUserDetails = sessionStorage.getItem("userDetails");
+  if (storedUserDetails) {
+    const getUserDetails = JSON.parse(storedUserDetails);
 
-    if (storedUserDetails) {
-      this.setState({
-        username:
-          storedUserDetails.username || storedUserDetails.name || "Student",
-      });
-    }
-
-    this.loadAccount();
-    this.loadClassesAndUnits();
+    this.setState({
+      username: getUserDetails.username || "Student",
+    });
   }
+
+  this.loadClassesAndUnits();
+}
 
   loadAccount = async () => {
     try {
@@ -102,41 +230,7 @@ export default class Welcome extends Component {
         username: updatedUser.username || updatedUser.name || "Student",
       });
     } catch (error) {
-      console.log("Could not load account:", error.message);
-    }
-  };
-
-  updateCurrentAccount = async (updatedData) => {
-    try {
-      const accountId = getStoredAccountId();
-      const response = await updateAccount(accountId, updatedData);
-
-      saveAuthSession(response, updatedData);
-
-      alert("Account updated successfully.");
-    } catch (error) {
-      alert(error.message || "Could not update account.");
-    }
-  };
-
-  deleteCurrentAccount = async () => {
-    const confirmed = window.confirm(
-      "Are you sure you want to delete your account? This cannot be undone."
-    );
-
-    if (!confirmed) {
-      return;
-    }
-
-    try {
-      const accountId = getStoredAccountId();
-
-      await deleteAccount(accountId);
-
-      clearAuthSession();
-      this.props.history.push("/signup");
-    } catch (error) {
-      alert(error.message || "Could not delete account.");
+      console.log("Account backend not reachable right now:", error.message);
     }
   };
 
@@ -155,22 +249,10 @@ export default class Welcome extends Component {
   };
 
   toArray = (data) => {
-    if (Array.isArray(data)) {
-      return data;
-    }
-
-    if (data && Array.isArray(data.content)) {
-      return data.content;
-    }
-
-    if (data && Array.isArray(data.data)) {
-      return data.data;
-    }
-
-    if (data) {
-      return [data];
-    }
-
+    if (Array.isArray(data)) return data;
+    if (data && Array.isArray(data.content)) return data.content;
+    if (data && Array.isArray(data.data)) return data.data;
+    if (data) return [data];
     return [];
   };
 
@@ -195,21 +277,13 @@ export default class Welcome extends Component {
       file.originalName ||
       "Attached file";
 
-    let src =
+    const src =
       file.src ||
       file.url ||
       file.downloadUrl ||
       file.fileUrl ||
       file.path ||
       "";
-
-    if (!src && file.data) {
-      src = `data:${type || "application/octet-stream"};base64,${file.data}`;
-    }
-
-    if (!src && fileId) {
-      src = `${FILES_API_URL}/${fileId}`;
-    }
 
     return {
       id: fileId || `${name}-${Date.now()}-${Math.random()}`,
@@ -293,45 +367,18 @@ export default class Welcome extends Component {
     return normalizedUnit;
   };
 
-  loadClassesAndUnits = async () => {
+  loadClassesAndUnits = () => {
     this.setState({ loadingData: true, loadError: "" });
 
     try {
-      const classesData = await apiFetch(CLASSES_API_URL, {
-        method: "GET",
-      });
-
-      let unitsData = [];
-
-      try {
-        unitsData = await apiFetch(UNITS_API_URL, {
-          method: "GET",
-        });
-      } catch (unitError) {
-        unitsData = [];
-      }
-
-      const rawClasses = this.toArray(classesData);
-      const classes = rawClasses.map(this.normalizeCourse);
-
-      const unitsFromClasses = rawClasses.flatMap((course) =>
-        this.toArray(course.units).map((unit) => ({
-          ...unit,
-          myClass: unit.myClass || course,
-        }))
-      );
-
-      const rawUnitsFromEndpoint = this.toArray(unitsData);
-      const rawUnits =
-        rawUnitsFromEndpoint.length > 0 ? rawUnitsFromEndpoint : unitsFromClasses;
-
+      const classes = MOCK_CLASSES.map(this.normalizeCourse);
       const unitsByClassId = {};
 
       classes.forEach((course) => {
         unitsByClassId[String(course.id)] = [];
       });
 
-      rawUnits.forEach((rawUnit) => {
+      MOCK_UNITS.forEach((rawUnit) => {
         const unit = this.normalizeUnit(rawUnit);
         const key = String(unit.classId);
 
@@ -342,26 +389,9 @@ export default class Welcome extends Component {
         unitsByClassId[key].push(unit);
       });
 
-      const previousClassId = this.state.selectedClassId;
-      const previousUnitId = this.state.selectedUnitId;
-
-      const selectedClassId = classes.some(
-        (course) => String(course.id) === String(previousClassId)
-      )
-        ? String(previousClassId)
-        : classes[0]
-        ? String(classes[0].id)
-        : "";
-
+      const selectedClassId = classes[0] ? String(classes[0].id) : "";
       const selectedUnits = unitsByClassId[selectedClassId] || [];
-
-      const selectedUnitId = selectedUnits.some(
-        (unit) => String(unit.id) === String(previousUnitId)
-      )
-        ? String(previousUnitId)
-        : selectedUnits[0]
-        ? String(selectedUnits[0].id)
-        : "";
+      const selectedUnitId = selectedUnits[0] ? String(selectedUnits[0].id) : "";
 
       this.setState({
         classes,
@@ -373,9 +403,7 @@ export default class Welcome extends Component {
     } catch (error) {
       this.setState({
         loadingData: false,
-        loadError:
-          error.message ||
-          "Could not load classes and units from the backend.",
+        loadError: "Could not load mock classes and units.",
       });
     }
   };
@@ -405,10 +433,10 @@ export default class Welcome extends Component {
   };
 
   logOut = (e) => {
-    e.preventDefault();
-    clearAuthSession();
-    this.props.history.push("/signin");
-  };
+  e.preventDefault();
+  sessionStorage.clear();
+  this.props.history.push("/signin");
+};
 
   setActiveSection = (section) => {
     this.setState({ activeSection: section });
@@ -481,7 +509,7 @@ export default class Welcome extends Component {
     }));
   };
 
-  createClass = async (e) => {
+  createClass = (e) => {
     e.preventDefault();
 
     const { code, name, professor, year } = this.state.newClass;
@@ -491,52 +519,33 @@ export default class Welcome extends Component {
       return;
     }
 
-    this.setState({ savingClass: true });
-
-    const payload = {
+    const savedClass = this.normalizeCourse({
+      id: Date.now(),
       code: code.trim(),
       name: name.trim(),
       professor: professor.trim() || null,
       year: year.trim() || null,
-    };
+    });
 
-    try {
-      const response = await apiFetch(CLASSES_API_URL, {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
-
-      const rawClass = response?.class || response?.data || response || payload;
-
-      const savedClass = this.normalizeCourse({
-        ...payload,
-        ...rawClass,
-        id: rawClass.id || Date.now(),
-      });
-
-      this.setState((prevState) => ({
-        classes: [...prevState.classes, savedClass],
-        unitsByClassId: {
-          ...prevState.unitsByClassId,
-          [String(savedClass.id)]: [],
-        },
-        selectedClassId: String(savedClass.id),
-        selectedClassPageId: String(savedClass.id),
-        selectedUnitId: "",
-        activeSection: "classDetail",
-        showNewClassModal: false,
-        savingClass: false,
-        newClass: {
-          code: "",
-          name: "",
-          professor: "",
-          year: "",
-        },
-      }));
-    } catch (error) {
-      this.setState({ savingClass: false });
-      alert(error.message || "Could not create class.");
-    }
+    this.setState((prevState) => ({
+      classes: [...prevState.classes, savedClass],
+      unitsByClassId: {
+        ...prevState.unitsByClassId,
+        [String(savedClass.id)]: [],
+      },
+      selectedClassId: String(savedClass.id),
+      selectedClassPageId: String(savedClass.id),
+      selectedUnitId: "",
+      activeSection: "classDetail",
+      showNewClassModal: false,
+      savingClass: false,
+      newClass: {
+        code: "",
+        name: "",
+        professor: "",
+        year: "",
+      },
+    }));
   };
 
   openNewNoteModal = (classId = null, unitId = null) => {
@@ -665,7 +674,7 @@ export default class Welcome extends Component {
     });
   };
 
-  createNote = async (e) => {
+  createNote = (e) => {
     e.preventDefault();
 
     const { title, content, tags, classId, unitId, files } = this.state.newNote;
@@ -680,79 +689,28 @@ export default class Welcome extends Component {
       return;
     }
 
-    this.setState({ savingNote: true });
-
     const selectedUnit = this.getUnitsForClass(classId).find(
       (unit) => String(unit.id) === String(unitId)
     );
 
-    const numericUnitId = Number.isNaN(Number(unitId)) ? unitId : Number(unitId);
-
-    const notePayload = {
-      title: title.trim(),
-      content: content.trim() || "No content added yet.",
-      tags,
-      unitId: numericUnitId,
-      myUnit: { id: numericUnitId },
-      unit: { id: numericUnitId },
-    };
-
-    try {
-      let savedNoteData = null;
-
-      if (files.length > 0) {
-        const formData = new FormData();
-
-        formData.append(
-          "note",
-          new Blob([JSON.stringify(notePayload)], {
-            type: "application/json",
-          })
-        );
-
-        formData.append("unitId", String(unitId));
-        formData.append("title", notePayload.title);
-        formData.append("content", notePayload.content);
-        formData.append("tags", tags.join(","));
-
-        files.forEach((file) => {
-          if (file.fileObject) {
-            formData.append("files", file.fileObject, file.name);
-          }
-        });
-
-        savedNoteData = await apiFetch(NOTES_API_URL, {
-          method: "POST",
-          body: formData,
-        });
-      } else {
-        savedNoteData = await apiFetch(NOTES_API_URL, {
-          method: "POST",
-          body: JSON.stringify(notePayload),
-        });
-      }
-
-      const savedNote = this.normalizeNote(
-        savedNoteData || {
-          ...notePayload,
-          id: Date.now(),
-          date: new Date().toISOString(),
-        },
-        selectedUnit
-      );
-
-      if ((!savedNote.files || savedNote.files.length === 0) && files.length > 0) {
-        savedNote.files = files.map((file) => ({
+    const savedNote = this.normalizeNote(
+      {
+        id: Date.now(),
+        title: title.trim(),
+        content: content.trim() || "No content added yet.",
+        tags,
+        files: files.map((file) => ({
           ...file,
           fileObject: null,
-        }));
-      }
+        })),
+        date: new Date().toISOString(),
+        unitId,
+        classId,
+      },
+      selectedUnit
+    );
 
-      this.addNoteToLocalState(savedNote, classId, unitId);
-    } catch (error) {
-      this.setState({ savingNote: false });
-      alert(error.message || "The note could not be saved to the backend.");
-    }
+    this.addNoteToLocalState(savedNote, classId, unitId);
   };
 
   openNotePopup = (note) => {
@@ -804,7 +762,7 @@ export default class Welcome extends Component {
     if (loadError) {
       return (
         <div className="error-card">
-          <h3>Backend connection issue</h3>
+          <h3>Mock data issue</h3>
           <p>{loadError}</p>
           <button className="secondary-button" onClick={this.loadClassesAndUnits}>
             Try Again
@@ -850,8 +808,7 @@ export default class Welcome extends Component {
           <div>
             <h3>Go to Classes</h3>
             <p>
-              View your classes, open individual class pages, and add notes to
-              specific units.
+              View mock classes, open class pages, and test image, PDF, and video notes.
             </p>
           </div>
 
@@ -873,7 +830,7 @@ export default class Welcome extends Component {
     if (loadError) {
       return (
         <div className="error-card">
-          <h3>Backend connection issue</h3>
+          <h3>Mock data issue</h3>
           <p>{loadError}</p>
           <button className="secondary-button" onClick={this.loadClassesAndUnits}>
             Try Again
@@ -929,9 +886,7 @@ export default class Welcome extends Component {
                 tabIndex="0"
                 onClick={() => this.openClassDetailPage(course.id)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    this.openClassDetailPage(course.id);
-                  }
+                  if (e.key === "Enter") this.openClassDetailPage(course.id);
                 }}
               >
                 <div className="course-card-header">
@@ -1117,9 +1072,7 @@ export default class Welcome extends Component {
         {notesToShow.length === 0 ? (
           <div className="empty-state compact">
             <h3>No notes yet</h3>
-            <p>
-              This unit exists in the backend, but it does not have any notes yet.
-            </p>
+            <p>This unit does not have any notes yet.</p>
 
             <button
               className="new-note-button"
@@ -1143,9 +1096,7 @@ export default class Welcome extends Component {
                 tabIndex="0"
                 onClick={() => this.openNotePopup(note)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    this.openNotePopup(note);
-                  }
+                  if (e.key === "Enter") this.openNotePopup(note);
                 }}
               >
                 <div className="note-card-header">
@@ -1186,9 +1137,7 @@ export default class Welcome extends Component {
   }
 
   renderNewClassModal() {
-    if (!this.state.showNewClassModal) {
-      return null;
-    }
+    if (!this.state.showNewClassModal) return null;
 
     const { newClass, savingClass } = this.state;
 
@@ -1198,7 +1147,7 @@ export default class Welcome extends Component {
           <div className="modal-header-custom">
             <div>
               <h2>Add Class</h2>
-              <p>Create a new class in the backend database.</p>
+              <p>Create a temporary local class for testing.</p>
             </div>
 
             <button className="modal-close-button" onClick={this.closeNewClassModal}>
@@ -1269,9 +1218,7 @@ export default class Welcome extends Component {
   }
 
   renderNewNoteModal() {
-    if (!this.state.showNewNoteModal) {
-      return null;
-    }
+    if (!this.state.showNewNoteModal) return null;
 
     const { newNote, classes, savingNote } = this.state;
     const unitsForNewNote = this.getUnitsForClass(newNote.classId);
@@ -1282,7 +1229,7 @@ export default class Welcome extends Component {
           <div className="modal-header-custom">
             <div>
               <h2>Create New Note</h2>
-              <p>This note will be saved to the selected backend unit.</p>
+              <p>This note is temporarily saved in local React state.</p>
             </div>
 
             <button className="modal-close-button" onClick={this.closeNewNoteModal}>
@@ -1357,7 +1304,7 @@ export default class Welcome extends Component {
             <div className="image-upload-area">
               <input
                 type="file"
-                accept="*/*"
+                accept="image/*,application/pdf,video/*"
                 multiple
                 ref={this.fileInputRef}
                 onChange={this.handleFileUpload}
@@ -1424,9 +1371,7 @@ export default class Welcome extends Component {
   renderNotePopup() {
     const { selectedNote } = this.state;
 
-    if (!selectedNote) {
-      return null;
-    }
+    if (!selectedNote) return null;
 
     return (
       <div className="modal-backdrop-custom">
@@ -1473,6 +1418,8 @@ export default class Welcome extends Component {
                           alt={file.name}
                           className="note-detail-image"
                         />
+                      ) : file.type && file.type.startsWith("video/") ? (
+                        <div className="note-detail-file-icon">VIDEO</div>
                       ) : (
                         <div className="note-detail-file-icon">
                           {file.name.split(".").pop().toUpperCase()}
@@ -1519,13 +1466,12 @@ export default class Welcome extends Component {
   renderFileViewerPopup() {
     const { selectedFile } = this.state;
 
-    if (!selectedFile) {
-      return null;
-    }
+    if (!selectedFile) return null;
 
     const url = this.getFileUrl(selectedFile);
     const isImage = selectedFile.type && selectedFile.type.startsWith("image/");
     const isPdf = selectedFile.type === "application/pdf";
+    const isVideo = selectedFile.type && selectedFile.type.startsWith("video/");
 
     return (
       <div className="modal-backdrop-custom file-viewer-backdrop">
@@ -1549,6 +1495,10 @@ export default class Welcome extends Component {
               </div>
             ) : isImage ? (
               <img src={url} alt={selectedFile.name} className="file-viewer-image" />
+            ) : isVideo ? (
+              <video src={url} controls className="file-viewer-video">
+                Your browser does not support video playback.
+              </video>
             ) : isPdf ? (
               <iframe
                 src={url}
@@ -1579,21 +1529,10 @@ export default class Welcome extends Component {
   }
 
   renderCurrentSection() {
-    if (this.state.activeSection === "dashboard") {
-      return this.renderDashboard();
-    }
-
-    if (this.state.activeSection === "classes") {
-      return this.renderClasses();
-    }
-
-    if (this.state.activeSection === "classDetail") {
-      return this.renderClassDetail();
-    }
-
-    if (this.state.activeSection === "notes") {
-      return this.renderNotes();
-    }
+    if (this.state.activeSection === "dashboard") return this.renderDashboard();
+    if (this.state.activeSection === "classes") return this.renderClasses();
+    if (this.state.activeSection === "classDetail") return this.renderClassDetail();
+    if (this.state.activeSection === "notes") return this.renderNotes();
 
     return this.renderDashboard();
   }
